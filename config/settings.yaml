@@ -8,7 +8,7 @@ sources:
     rate_limit_rps: 8
     user_agent: "InflectionDetector research@example.com"
   alphasense:
-    enabled: false
+    enabled: true
     user_data_dir: "/home/user/.config/chromium"
     headless: true
     delay_between_requests_s: 4
