@@ -14,8 +14,7 @@ ROLE_WEIGHTS = {
 }
 
 GUIDANCE_PATTERNS = re.compile(
-    r"\b(expect[s]?|anticipate[s]?|project[s]?|guid(e|ing|ance)|target[s]?|forecast[s]?)\b.{0,80}"
-    r"\b(accelerat|significan|material|step[- ]change|outsized|dramatic|substantial)\b",
+    r"\b(expect[s]?|anticipate[s]?|project[s]?|guid(?:e|ing|ance)|target[s]?|forecast[s]?|confident|poised|well[- ]positioned|on track)\b",
     re.IGNORECASE,
 )
 
@@ -124,11 +123,10 @@ class Scorer:
         # E: Dollar quantification
         dollar_score = 1.0 if ner_result.has_dollar_quantification else 0.0
 
-        # F: Guidance language
-        prepared_text = " ".join(record.sections.get("prepared_remarks", []) if isinstance(record.sections.get("prepared_remarks", []), list) else [])
-        prepared_text = " ".join(t if isinstance(t, str) else t.get("text", "") for t in record.sections.get("prepared_remarks", []))
-        guidance_hits = len(GUIDANCE_PATTERNS.findall(prepared_text[-max(1, len(prepared_text)//5):]))
-        guidance_score = min(1.0, guidance_hits / 5.0)
+        # F: Guidance language — forward-looking language anywhere in document
+        full_text = record.raw_text or ""
+        guidance_hits = len(GUIDANCE_PATTERNS.findall(full_text))
+        guidance_score = min(1.0, guidance_hits / 10.0)
 
         # G: Analyst Q&A focus
         qa_items = record.sections.get("qa", [])

@@ -111,6 +111,39 @@ class EdgarCollector(BaseCollector):
 
         return results
 
+    def efts_find_transcript_filings(self, cik: str, start_date: str, end_date: str) -> list[dict]:
+        """Use EDGAR full-text search to find 8-K filings that contain 'earnings call' text."""
+        url = "https://efts.sec.gov/LATEST/search-index"
+        cik_padded = cik.zfill(10)
+        params = {
+            "q": '"earnings call"',
+            "forms": "8-K",
+            "dateRange": "custom",
+            "startdt": start_date,
+            "enddt": end_date,
+            "ciks": cik_padded,
+            "size": 100,
+        }
+        try:
+            resp = self._get(url, params=params)
+            data = resp.json()
+        except Exception as e:
+            logger.debug(f"EFTS search failed for CIK {cik}: {e}")
+            return []
+
+        hits = data.get("hits", {}).get("hits", [])
+        seen = set()
+        results = []
+        for h in hits:
+            src = h["_source"]
+            adsh = src.get("adsh", "")
+            date = src.get("file_date", "")
+            if adsh and adsh not in seen:
+                seen.add(adsh)
+                # Convert EFTS adsh format (with dashes) to accession number
+                results.append({"date": date, "accession": adsh, "cik": cik})
+        return results
+
     def find_transcript_exhibit(self, cik: str, accession: str) -> Optional[str]:
         # Check DB cache
         row = self.db.execute(
@@ -124,33 +157,60 @@ class EdgarCollector(BaseCollector):
                 return None  # Previously determined: no transcript
 
         accession_dashes = accession.replace("-", "")
-        index_url = f"{EDGAR_ARCHIVES}/{cik}/{accession_dashes}/"
+        # Use formal index page (-index.html) which has document type descriptions
+        index_url = f"{EDGAR_ARCHIVES}/{cik}/{accession_dashes}/{accession}-index.html"
         try:
             resp = self._get(index_url, headers={"Accept": "text/html"})
         except Exception as e:
-            logger.debug(f"Index fetch failed {index_url}: {e}")
-            return None
+            # Fallback to raw directory listing
+            index_url = f"{EDGAR_ARCHIVES}/{cik}/{accession_dashes}/"
+            try:
+                resp = self._get(index_url, headers={"Accept": "text/html"})
+            except Exception as e2:
+                logger.debug(f"Index fetch failed {index_url}: {e2}")
+                return None
 
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(resp.text, "lxml")
+        # The formal index page has columns: [seq, doc_type, filename, type, size]
+        # The raw directory listing has columns: [filename, size, date]
+        # Detect which format we got by checking header row
+        header_row = soup.select_one("table tr")
+        headers = [th.get_text(strip=True).lower() for th in header_row.find_all("th")] if header_row else []
+        is_formal_index = "type" in headers or len(headers) >= 4
+
         rows = soup.select("table tr")
         candidates = []
         fallback_exhibits = []  # EX-99.x exhibits without keyword match — try as fallback
         for row_el in rows:
             cells = row_el.find_all("td")
-            if len(cells) < 3:
-                continue
-            desc = cells[1].get_text(strip=True).lower()
-            fname = cells[2].get_text(strip=True).lower()
-            link = cells[2].find("a")
+            if is_formal_index:
+                # Formal index: [seq, doc_type, filename_link, type_code, size]
+                if len(cells) < 3:
+                    continue
+                desc = cells[1].get_text(strip=True).lower()
+                link = cells[2].find("a")
+                fname = cells[2].get_text(strip=True).lower()
+            else:
+                # Raw directory listing: [filename_link, size, date]
+                if len(cells) < 1:
+                    continue
+                desc = ""
+                link = cells[0].find("a")
+                fname = cells[0].get_text(strip=True).lower()
             if not link:
                 continue
             href = link.get("href", "")
             if not href:
                 continue
             # Skip XML index files and XBRL
-            if fname.endswith((".xml", ".xsd", ".json")) or "xbrl" in fname or "r9999" in fname:
+            if fname.endswith((".xml", ".xsd", ".json", ".zip")) or "xbrl" in fname or "r9999" in fname:
                 continue
+            if fname.endswith((".jpg", ".gif", ".png", ".jpeg")):
+                continue
+            # Skip iXBRL viewer links
+            if href.startswith("/ix?"):
+                href = href.split("doc=")[-1] if "doc=" in href else href
             full_url = f"https://www.sec.gov{href}" if href.startswith("/") else href
             score = 0
             for hint in TRANSCRIPT_FILENAME_HINTS:
@@ -204,8 +264,14 @@ class EdgarCollector(BaseCollector):
             logger.warning(f"No CIK found for {ticker}")
             return []
 
-        filings = self.get_8k_filings(cik, start_date, end_date)
-        logger.info(f"{ticker}: found {len(filings)} 8-K filings in range")
+        # Use EFTS full-text search to directly find filings with "earnings call" content
+        filings = self.efts_find_transcript_filings(cik, start_date, end_date)
+        if filings:
+            logger.info(f"{ticker}: EFTS found {len(filings)} candidate transcript filings")
+        else:
+            # Fallback: scan all 8-K filings (slower, works for any company)
+            filings = self.get_8k_filings(cik, start_date, end_date)
+            logger.info(f"{ticker}: found {len(filings)} 8-K filings in range (fallback scan)")
 
         records = []
         for filing in filings:
