@@ -1,0 +1,58 @@
+date_range:
+  start: "2022-01-01"
+  end: "2025-03-31"
+
+sources:
+  edgar:
+    enabled: true
+    rate_limit_rps: 8
+    user_agent: "InflectionDetector research@example.com"
+  alphasense:
+    enabled: false
+    user_data_dir: "/home/user/.config/chromium"
+    headless: true
+    delay_between_requests_s: 4
+    max_transcripts_per_session: 50
+  seeking_alpha:
+    enabled: true
+    delay_between_requests_s: 6
+    max_retries: 3
+    backoff_multiplier: 2
+  ir_website:
+    enabled: false
+    delay_between_requests_s: 3
+    timeout_s: 30
+
+nlp:
+  spacy_model: "en_core_web_sm"
+  zero_shot_model: "facebook/bart-large-mnli"
+  zero_shot_threshold: 0.45
+  embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+  batch_size: 8
+  novelty_default_score: 0.65
+  skip_zero_shot: false
+
+scoring:
+  weights:
+    keyword: 0.20
+    frequency: 0.10
+    seniority: 0.20
+    novelty: 0.25
+    dollar: 0.10
+    guidance: 0.10
+    qa: 0.05
+  negative_class_penalty: 0.40
+  tiers:
+    tier1_min: 70
+    tier2_min: 45
+    tier3_min: 25
+
+output:
+  excel_path: "data/output/inflection_report_{timestamp}.xlsx"
+  include_filtered: false
+
+processing:
+  max_workers: 4
+  cache_dir: "data/cache"
+  log_level: "INFO"
+  log_file: "data/inflection_detector.log"
