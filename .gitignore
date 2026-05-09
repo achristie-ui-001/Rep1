@@ -1,0 +1,18 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Data and outputs (too large, not source code)
+data/
+!data/.gitkeep
+
+# Env
+.env
+*.env
+
+# IDE
+.vscode/
+.idea/

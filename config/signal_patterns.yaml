@@ -1,0 +1,247 @@
+technology_adoption:
+  strong:
+    - pattern: "new use case[s]?"
+      weight: 1.0
+    - pattern: "platform shift"
+      weight: 1.0
+    - pattern: "AI deployment|AI adoption|deploying AI|AI-enabled"
+      weight: 1.0
+    - pattern: "generative AI|gen[- ]?AI|genAI"
+      weight: 1.0
+    - pattern: "large language model[s]?|LLM[s]?"
+      weight: 1.0
+    - pattern: "GPU demand|GPU capacity|GPU cluster"
+      weight: 1.0
+    - pattern: "inference workload[s]?|inference demand"
+      weight: 1.0
+    - pattern: "agentic AI|agentic workflow"
+      weight: 1.0
+    - pattern: "autonomous.*vehicle|self[- ]driving"
+      weight: 1.0
+    - pattern: "digital twin[s]?"
+      weight: 1.0
+    - pattern: "HBM|high bandwidth memory"
+      weight: 1.0
+    - pattern: "optical interconnect[s]?|silicon photonics"
+      weight: 1.0
+    - pattern: "KV cache|key[- ]value cache"
+      weight: 1.0
+    - pattern: "foundation model[s]?|frontier model[s]?"
+      weight: 1.0
+  medium:
+    - pattern: "accelerat(ed|ing|ion).*adoption"
+      weight: 0.6
+    - pattern: "new vertical[s]?"
+      weight: 0.6
+    - pattern: "new workload[s]?"
+      weight: 0.6
+    - pattern: "broader deployment"
+      weight: 0.6
+    - pattern: "technology.*transition"
+      weight: 0.6
+    - pattern: "digitiz(ation|ing|e)"
+      weight: 0.6
+    - pattern: "cloud.*migration|migrat.*cloud"
+      weight: 0.6
+    - pattern: "software-defined"
+      weight: 0.6
+  contextual:
+    - pattern: "expand(ing|ed|s)|grow(ing|th)|scaling"
+      adjacent_to: ["AI", "ML", "cloud", "software", "technology", "platform"]
+      weight: 0.3
+
+regulatory:
+  strong:
+    - pattern: "FDA approv(al|ed|ing)"
+      weight: 1.0
+    - pattern: "cleared by (the )?FDA|FDA clear(ed|ance)"
+      weight: 1.0
+    - pattern: "breakthrough (therapy|designation|device)"
+      weight: 1.0
+    - pattern: "regulatory (approval|clearance|tailwind)"
+      weight: 1.0
+    - pattern: "new mandate[s]?|government mandate"
+      weight: 1.0
+    - pattern: "CMS approv(al|ed)|Medicare (coverage|reimbursement)"
+      weight: 1.0
+    - pattern: "Inflation Reduction Act|IRA.*drug|drug pricing.*law"
+      weight: 1.0
+    - pattern: "Section 232|Section 301|tariff.*benefit|tariff.*exclusion"
+      weight: 1.0
+    - pattern: "CHIPS Act|semiconductor.*subsidy"
+      weight: 1.0
+    - pattern: "(EPA|OSHA|SEC|FTC|DOJ|CFTC).*rulemak|new rule.*compli"
+      weight: 1.0
+  medium:
+    - pattern: "regulat(ory|ion|or[s]?).*favorabl"
+      weight: 0.6
+    - pattern: "policy change[s]?.*benefit"
+      weight: 0.6
+    - pattern: "government contract[s]?"
+      weight: 0.6
+    - pattern: "compliance requirement[s]?|compliance mandate"
+      weight: 0.6
+    - pattern: "approval pathway|expedited review"
+      weight: 0.6
+  contextual:
+    - pattern: "approv(ed|al|ing)|regulat(ed|ion)"
+      adjacent_to: ["new", "first", "unprecedented", "historic", "landmark"]
+      weight: 0.3
+
+market_expansion:
+  strong:
+    - pattern: "TAM expansion|total addressable market.*expand|addressable market.*grow"
+      weight: 1.0
+    - pattern: "new geograph(y|ies|ic market)"
+      weight: 1.0
+    - pattern: "enter(ing|ed|s).*new market"
+      weight: 1.0
+    - pattern: "international expansion"
+      weight: 1.0
+    - pattern: "new demographic[s]?"
+      weight: 1.0
+    - pattern: "greenfield opportunit"
+      weight: 1.0
+    - pattern: "whitespace opportunit"
+      weight: 1.0
+    - pattern: "adjacen(t|cy) opportunit"
+      weight: 1.0
+    - pattern: "(billion|trillion).*opportunit|opportunit.*(billion|trillion)"
+      weight: 1.0
+    - pattern: "first mover advantage"
+      weight: 1.0
+  medium:
+    - pattern: "untapped market|underserved market"
+      weight: 0.6
+    - pattern: "market share gain"
+      weight: 0.6
+    - pattern: "penetration.*increase|penetration.*grow"
+      weight: 0.6
+    - pattern: "new customer segment"
+      weight: 0.6
+    - pattern: "expand(ing|ed).*footprint"
+      weight: 0.6
+  contextual:
+    - pattern: "opportunit(y|ies)|expand|grow"
+      adjacent_to: ["market", "segment", "geography", "region", "international"]
+      weight: 0.3
+
+behavior_change:
+  strong:
+    - pattern: "consumer behav(ior|iour) (shift|change|evolv)"
+      weight: 1.0
+    - pattern: "structural shift|secular trend"
+      weight: 1.0
+    - pattern: "GLP-1|semaglutide|tirzepatide|Ozempic|Wegovy|Mounjaro"
+      weight: 1.0
+    - pattern: "work from home|hybrid work.*permanent|remote work.*sustain"
+      weight: 1.0
+    - pattern: "preference shift|demand.*shift|shift.*demand"
+      weight: 1.0
+    - pattern: "behavioral (change|shift)"
+      weight: 1.0
+    - pattern: "obesity treatment|weight (loss|management).*drug"
+      weight: 1.0
+    - pattern: "aging population|demographic.*tailwind"
+      weight: 1.0
+    - pattern: "electrification.*vehicle|EV adoption|electric vehicle.*penetration"
+      weight: 1.0
+  medium:
+    - pattern: "trend.*sustain(ed|able)"
+      weight: 0.6
+    - pattern: "adoption curve"
+      weight: 0.6
+    - pattern: "buying pattern[s]?|purchase.*pattern[s]?"
+      weight: 0.6
+    - pattern: "consumer preference"
+      weight: 0.6
+    - pattern: "durable trend|long[- ]term trend"
+      weight: 0.6
+  contextual:
+    - pattern: "shift(ing|ed)|chang(ing|ed)|evolv(ing|ed)"
+      adjacent_to: ["consumer", "customer", "buyer", "behavior", "preference", "demand"]
+      weight: 0.3
+
+operational:
+  strong:
+    - pattern: "AI.*(automat|efficien|productiv)|automat.*AI"
+      weight: 1.0
+    - pattern: "margin expansion.*basis point|basis point.*margin"
+      weight: 1.0
+    - pattern: "cost.*automat(ion|ed|ing)|automat.*cost"
+      weight: 1.0
+    - pattern: "restructur(ing|ed|e).*cost|cost.*restructur"
+      weight: 1.0
+    - pattern: "pricing power"
+      weight: 1.0
+    - pattern: "turnaround.*execut|execut.*turnaround"
+      weight: 1.0
+    - pattern: "new management|leadership (change|transition|team)"
+      weight: 1.0
+    - pattern: "operating leverage"
+      weight: 1.0
+    - pattern: "headcount reduction.*margin|margin.*headcount"
+      weight: 1.0
+    - pattern: "price increase[s]?.*sustain|sustain.*price increase"
+      weight: 1.0
+    - pattern: "mix shift.*favorable|favorable.*mix shift"
+      weight: 1.0
+  medium:
+    - pattern: "lean.*operation|operational excellence"
+      weight: 0.6
+    - pattern: "cost takeout[s]?|cost reduction initiative"
+      weight: 0.6
+    - pattern: "productivity.*improv|improv.*productivity"
+      weight: 0.6
+    - pattern: "efficiency.*gain[s]?|gain[s]?.*efficiency"
+      weight: 0.6
+    - pattern: "ASP (increase|improvement|growth)|average selling price.*increas"
+      weight: 0.6
+    - pattern: "gross margin.*expand|expand.*gross margin"
+      weight: 0.6
+  contextual:
+    - pattern: "improv(ing|ed|ement)|gain[s]?|increas(ing|ed)"
+      adjacent_to: ["margin", "efficiency", "productivity", "cost", "pricing"]
+      weight: 0.3
+
+cross_industry:
+  strong:
+    - pattern: "(aerospace|defense|automotive|healthcare|agriculture|energy|retail|logistics).*adopt(ing|ed|s|ion)"
+      weight: 1.0
+    - pattern: "industrial.*AI|AI.*industrial"
+      weight: 1.0
+    - pattern: "new (sector|industry|vertical[s]?).*customer[s]?"
+      weight: 1.0
+    - pattern: "surprising(ly)?.*(demand|customer|use|application)"
+      weight: 1.0
+    - pattern: "did not expect|unexpected.*demand|demand.*unexpected"
+      weight: 1.0
+    - pattern: "non[- ]traditional.*customer|customer[s]?.*new.*segment"
+      weight: 1.0
+    - pattern: "enterprise.*use case[s]?|use case[s]?.*enterprise"
+      weight: 1.0
+  medium:
+    - pattern: "cross[- ]sell(ing)?"
+      weight: 0.6
+    - pattern: "adjacent industr|adjacent sector"
+      weight: 0.6
+    - pattern: "converging.*market|market.*converging"
+      weight: 0.6
+    - pattern: "platform.*multiple.*industry|multiple.*industry.*platform"
+      weight: 0.6
+  contextual:
+    - pattern: "adopt(ing|ed|ion)|deploy(ing|ed|ment)"
+      adjacent_to: ["across", "multiple", "various", "different", "diverse"]
+      weight: 0.3
+
+negative_signals:
+  - pattern: "as (previously|we) (mentioned|discussed|noted|indicated)"
+    weight: -0.3
+  - pattern: "as (you|we) know|as (has|have) been (mentioned|said)"
+    weight: -0.3
+  - pattern: "forward[- ]looking statement[s]?|safe harbor"
+    weight: -1.0
+  - pattern: "remain(s|ed)? (consistent|unchanged|on track|committed)"
+    weight: -0.2
+  - pattern: "no (change|update|new|additional) (to|on|in)"
+    weight: -0.3
