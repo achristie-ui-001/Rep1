@@ -6,8 +6,8 @@ __pycache__/
 .Python
 
 # Data and outputs (too large, not source code)
-data/cache/
-data/output/
+data/
+!data/.gitkeep
 
 # Env
 .env
