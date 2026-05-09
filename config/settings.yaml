@@ -50,6 +50,7 @@ scoring:
 output:
   excel_path: "data/output/inflection_report_{timestamp}.xlsx"
   include_filtered: false
+  max_market_cap_bn: 15.0
 
 processing:
   max_workers: 4

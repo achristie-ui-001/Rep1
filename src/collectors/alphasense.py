@@ -12,6 +12,7 @@ Do NOT distribute this module or content collected via it.
 """
 import asyncio
 import datetime
+import os
 import re
 import time
 from typing import Optional
@@ -59,17 +60,22 @@ class AlphaSenseCollector(BaseCollector):
 
         async with async_playwright() as p:
             try:
-                if self.user_data_dir:
+                expanded_dir = os.path.expanduser(self.user_data_dir) if self.user_data_dir else ""
+                if expanded_dir and os.path.isdir(expanded_dir):
                     ctx = await p.chromium.launch_persistent_context(
-                        self.user_data_dir,
+                        expanded_dir,
                         headless=self.headless,
                         args=["--disable-blink-features=AutomationControlled"],
                     )
-                    page = await ctx.new_page()
                 else:
+                    if expanded_dir:
+                        logger.warning(
+                            f"AlphaSense user_data_dir not found: {expanded_dir}. "
+                            "Launching fresh browser (you will need to log in manually or run on your Mac)."
+                        )
                     browser = await p.chromium.launch(headless=self.headless)
                     ctx = await browser.new_context()
-                    page = await ctx.new_page()
+                page = await ctx.new_page()
             except Exception as e:
                 logger.error(f"Playwright browser launch failed: {e}")
                 return []

@@ -51,6 +51,30 @@ def filter_companies(companies: list[dict], tickers: Optional[list[str]]) -> lis
     return [c for c in companies if c["ticker"].upper() in ticker_set]
 
 
+def filter_by_market_cap(companies: list[dict], max_cap_bn: float) -> list[dict]:
+    """Keep only companies with market cap ≤ max_cap_bn billion (via yfinance)."""
+    try:
+        import yfinance as yf
+    except ImportError:
+        logger.warning("yfinance not installed — skipping market cap filter")
+        return companies
+
+    kept = []
+    for company in companies:
+        ticker = company["ticker"].upper()
+        try:
+            info = yf.Ticker(ticker).fast_info
+            cap_bn = (getattr(info, "market_cap", None) or 0) / 1e9
+            if cap_bn <= max_cap_bn:
+                kept.append(company)
+            else:
+                logger.info(f"{ticker}: ${cap_bn:.1f}bn market cap — filtered (>{max_cap_bn}bn)")
+        except Exception as e:
+            logger.debug(f"{ticker}: market cap lookup failed ({e}) — included by default")
+            kept.append(company)
+    return kept
+
+
 def init_collectors(config: dict):
     collectors = {}
     src_cfg = config.get("sources", {})
@@ -207,6 +231,14 @@ def main():
     if args.tickers:
         ticker_list = [t.strip() for t in args.tickers.split(",")]
         companies = filter_companies(companies, ticker_list)
+
+    # Market cap filter (skip if specific tickers were given)
+    if not args.tickers:
+        max_cap = config.get("output", {}).get("max_market_cap_bn")
+        if max_cap:
+            logger.info(f"Filtering to companies with market cap ≤ ${max_cap}bn...")
+            companies = filter_by_market_cap(companies, float(max_cap))
+
     logger.info(f"Processing {len(companies)} companies")
 
     os.makedirs("data/cache", exist_ok=True)

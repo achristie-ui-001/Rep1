@@ -13,3 +13,4 @@ python-dateutil==2.9.0
 tenacity==8.2.3
 tqdm==4.66.4
 scikit-learn==1.4.2
+yfinance>=0.2.40

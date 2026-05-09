@@ -53,10 +53,18 @@ EXEC_SUMMARY_COLUMNS = [
     ("Company", 28),
     ("Date", 12),
     ("Inflection Type", 25),
-    ("Story", 70),
+    ("Quarters", 12),
+    ("Novelty", 10),
+    ("Story", 65),
     ("Speaker", 30),
     ("Transcript URL", 45),
 ]
+
+NOVELTY_BADGE_FILL = {
+    "HIGH": PatternFill("solid", fgColor="00C853"),
+    "MED":  PatternFill("solid", fgColor="FFD600"),
+    "LOW":  PatternFill("solid", fgColor="FF5252"),
+}
 
 _INFLECTION_VERBS = {
     "Technology Adoption": "deploying",
@@ -66,6 +74,29 @@ _INFLECTION_VERBS = {
     "Operational Transformation": "transforming operations in",
     "Cross-Industry Adoption": "winning new customer segments in",
 }
+
+
+def _novelty_badge(score: float) -> str:
+    if score >= 0.70:
+        return "HIGH"
+    if score >= 0.50:
+        return "MED"
+    return "LOW"
+
+
+def _consolidate_signals(signals: list[InflectionSignal]) -> list[tuple]:
+    """Group by (ticker, inflection_type). Returns list of (best_signal, quarters_count, quarters_list)."""
+    groups: dict[tuple, list[InflectionSignal]] = {}
+    for s in signals:
+        key = (s.ticker, s.inflection_type)
+        groups.setdefault(key, []).append(s)
+
+    result = []
+    for group in groups.values():
+        best = max(group, key=lambda s: s.score)
+        quarters = sorted(set(s.quarter for s in group if s.quarter))
+        result.append((best, len(group), quarters))
+    return result
 
 
 def _make_story(sig: InflectionSignal) -> str:
@@ -107,8 +138,11 @@ def _write_exec_summary(wb, signals: list[InflectionSignal]):
     ws.title = "Top Signals"
     ws.freeze_panes = "A2"
 
+    num_cols = len(EXEC_SUMMARY_COLUMNS)
+    last_col = get_column_letter(num_cols)
+
     # Title row
-    ws.merge_cells("A1:I1")
+    ws.merge_cells(f"A1:{last_col}1")
     title_cell = ws.cell(row=1, column=1, value="INFLECTION POINT DETECTOR — TOP SIGNALS")
     title_cell.fill = PatternFill("solid", fgColor="0D47A1")
     title_cell.font = Font(color="FFFFFF", bold=True, size=14)
@@ -124,20 +158,22 @@ def _write_exec_summary(wb, signals: list[InflectionSignal]):
         ws.column_dimensions[get_column_letter(col_idx)].width = col_width
     ws.row_dimensions[2].height = 22
 
-    # Top signals: Tier 1 first, then Tier 2, sorted by score
-    top = sorted(
-        [s for s in signals if s.tier in ("Tier 1", "Tier 2")],
-        key=lambda s: (0 if s.tier == "Tier 1" else 1, -s.score),
-    )[:50]
+    # Consolidate by (ticker, inflection_type), Tier 1 first then Tier 2, sorted by score
+    consolidated = _consolidate_signals([s for s in signals if s.tier in ("Tier 1", "Tier 2")])
+    top = sorted(consolidated, key=lambda x: (0 if x[0].tier == "Tier 1" else 1, -x[0].score))[:50]
 
     prev_tier = None
     row_idx = 3
-    for rank, sig in enumerate(top, start=1):
+    for rank, (sig, q_count, quarters) in enumerate(top, start=1):
         # Tier divider row
         if sig.tier != prev_tier:
-            ws.merge_cells(f"A{row_idx}:I{row_idx}")
-            label = ws.cell(row=row_idx, column=1,
-                            value=f"{'★ ' if sig.tier == 'Tier 1' else '◆ '}{sig.tier} — {sig.inflection_type if sig.tier == 'Tier 2' else 'Highest Conviction Signals'}")
+            ws.merge_cells(f"A{row_idx}:{last_col}{row_idx}")
+            divider_label = (
+                f"★ Tier 1 — Highest Conviction Signals"
+                if sig.tier == "Tier 1"
+                else f"◆ Tier 2 — Strong Signals"
+            )
+            label = ws.cell(row=row_idx, column=1, value=divider_label)
             label.fill = PatternFill("solid", fgColor="C8F7C5" if sig.tier == "Tier 1" else "FFF9C4")
             label.font = Font(bold=True, size=10, color="1A237E")
             label.alignment = Alignment(horizontal="left", vertical="center", indent=1)
@@ -151,30 +187,36 @@ def _write_exec_summary(wb, signals: list[InflectionSignal]):
         if sig.speaker_role and sig.speaker_role not in ("Unknown", ""):
             speaker_display += f" ({sig.speaker_role})"
 
+        novelty_badge = _novelty_badge(sig.novelty_score)
+        quarters_display = (
+            f"{q_count} quarters" if q_count > 1
+            else (quarters[0] if quarters else sig.date[:7])
+        )
+
+        # Cols: Rank, Score, Ticker, Company, Date, InflType, Quarters, Novelty, Story, Speaker, URL
         row_data = [
-            rank,
-            sig.score,
-            sig.ticker,
-            sig.company_name,
-            sig.date,
-            sig.inflection_type,
-            story,
-            speaker_display,
-            sig.transcript_url,
+            rank, sig.score, sig.ticker, sig.company_name, sig.date,
+            sig.inflection_type, quarters_display, novelty_badge,
+            story, speaker_display, sig.transcript_url,
         ]
         for col_idx, value in enumerate(row_data, start=1):
             cell = ws.cell(row=row_idx, column=col_idx, value=value)
-            cell.fill = fill
-            cell.alignment = Alignment(vertical="top", wrap_text=(col_idx in (7, 9)))
-            if col_idx == 9 and value:
+            if col_idx == 8:  # Novelty badge — override fill with signal color
+                cell.fill = NOVELTY_BADGE_FILL.get(novelty_badge, fill)
+                cell.font = Font(bold=True, size=9)
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+            else:
+                cell.fill = fill
+                cell.alignment = Alignment(vertical="top", wrap_text=(col_idx in (9, 11)))
+            if col_idx == 11 and value:  # URL
                 cell.hyperlink = value
                 cell.font = Font(color="1565C0", underline="single")
-            elif col_idx == 2:
+            elif col_idx == 2:  # Score
                 cell.font = Font(bold=True)
         ws.row_dimensions[row_idx].height = 36 if len(story) > 80 else 22
         row_idx += 1
 
-    ws.auto_filter.ref = f"A2:{get_column_letter(len(EXEC_SUMMARY_COLUMNS))}2"
+    ws.auto_filter.ref = f"A2:{last_col}2"
 
 
 def _write_signals_sheet(wb, signals: list[InflectionSignal]):
@@ -219,8 +261,14 @@ def _write_signals_sheet(wb, signals: list[InflectionSignal]):
 
         for col_idx, value in enumerate(row_data, start=1):
             cell = ws.cell(row=row_idx, column=col_idx, value=value)
-            cell.fill = fill
-            cell.alignment = Alignment(vertical="top", wrap_text=(col_idx in (9, 10)))
+            if col_idx == 12 and value is not None:  # Novelty Score — color by badge
+                badge = _novelty_badge(float(value))
+                cell.fill = NOVELTY_BADGE_FILL.get(badge, fill)
+                cell.font = Font(bold=True, size=9)
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+            else:
+                cell.fill = fill
+                cell.alignment = Alignment(vertical="top", wrap_text=(col_idx in (9, 10)))
             if col_idx == 17 and value:
                 cell.hyperlink = value
                 cell.font = Font(color="1565C0", underline="single")
