@@ -9,7 +9,7 @@ sources:
     user_agent: "InflectionDetector research@example.com"
   alphasense:
     enabled: true
-    user_data_dir:"~/Library/Application Support/Google/Chrome/Default"
+    user_data_dir: "~/Library/Application Support/Google/Chrome/Default"
     headless: true
     delay_between_requests_s: 4
     max_transcripts_per_session: 50
