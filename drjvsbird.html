@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>DRJVSBIRD 🔥🏀</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#000; overflow:hidden; touch-action:none; user-select:none; font-family:'Comic Sans MS',cursive; }
+canvas { display:block; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+'use strict';
+const CV = document.getElementById('c');
+const CX = CV.getContext('2d');
+let W, H;
+const resize = () => { W = CV.width = window.innerWidth; H = CV.height = window.innerHeight; };
+resize();
+window.addEventListener('resize', resize);
+
+/* ══════════════════════════════════════════════
+   AUDIO  (lazy init — safe on iOS)
+══════════════════════════════════════════════ */
+let _AC = null;
+function getAC() {
+  if (!_AC) { try { _AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} }
+  return _AC;
+}
+function tone(f, d, type='square', vol=0.3, delay=0) {
+  const ac = getAC(); if (!ac) return;
+  try {
+  const o = ac.createOscillator(), g = ac.createGain();
+  const t0 = ac.currentTime + delay;
+  o.connect(g); g.connect(ac.destination);
+  o.type = type; o.frequency.setValueAtTime(f, t0);
+  g.gain.setValueAtTime(vol, t0);
+  g.gain.exponentialRampToValueAtTime(0.001, t0 + d);
+  o.start(t0); o.stop(t0 + d);
+  } catch(e) {}
+}
+const sfx = {
+  tap:    () => tone(500, .05, 'square', .2),
+  select: () => { tone(660,.08,'sine',.3); tone(880,.08,'sine',.25,.07); },
+  score:  () => [523,659,784,1047].forEach((f,i)=>tone(f,.15,'sine',.45,i*.07)),
+  three:  () => [523,659,784,880,1047,1175].forEach((f,i)=>tone(f,.12,'sine',.45,i*.06)),
+  dunk:   () => { tone(90,.08,'sawtooth',.7); tone(80,.35,'sawtooth',.5,.06); [660,880,1100].forEach((f,i)=>tone(f,.12,'sine',.4,i*.06+.12)); },
+  miss:   () => { tone(220,.12,'sawtooth',.35); tone(150,.28,'sawtooth',.3,.11); },
+  cpu:    () => [350,280,220,180].forEach((f,i)=>tone(f,.14,'square',.3,i*.08)),
+  whoosh: () => { tone(900,.07,'sawtooth',.15); tone(400,.22,'sawtooth',.1,.06); },
+  menu:   () => [330,392,494,659].forEach((f,i)=>tone(f,.1,'square',.2,i*.08)),
+  crowd:  (pos) => { for(let i=0;i<6;i++) tone(180+Math.random()*350,.3+Math.random()*.4,'sine',.05+Math.random()*.05,i*.04); if(pos) for(let i=0;i<4;i++) tone(550+Math.random()*200,.2,'sine',.07,i*.05+.2); },
+};
+const resume = () => { try { const ac=getAC(); if(ac && ac.state==='suspended') ac.resume(); } catch(e) {} };
+
+/* ══════════════════════════════════════════════
+   GAME DATA
+══════════════════════════════════════════════ */
+const OPPONENTS = [
+  { id:'lawbrawn', name:'Law-Brawn James', short:'LBJ-BOT', color:'#6d28d9', accent:'#fbbf24', emoji:'👑',
+    diff:.70, desc:'The Self-Proclaimed King',
+    wins:["NOT IN MY COURT! 👑","WITNESS THIS! 👀","SPACE JAM MODE! 🚀","CHOSEN ONE! ⚡"],
+    loss:["MY HEADBAND SLIPPED! 🤷","I LET YOU HAVE THAT! 😏","WASN'T MY BEST EFFORT! 💅"] },
+  { id:'curry',    name:"Steppin' Curry",   short:'CURRY-3', color:'#1d4ed8', accent:'#fbbf24', emoji:'⭐',
+    diff:.76, desc:'Never Stops Shooting',
+    wins:["NIGHT NIGHT! 😴","SPLASH SPLASH! 💦","STEP BACK WAY BACK! 🪃","MVP! 🏆"],
+    loss:["MY MOUTHGUARD! 😬","WIND GOT ME! 💨","...MEANT TO DO THAT! 🤥"] },
+  { id:'shaq',     name:"Shaq-Attack O'Steel", short:'SHAQBOT', color:'#dc2626', accent:'#111', emoji:'💥',
+    diff:.61, desc:'Rim Destroyer, Free Throw Avoider',
+    wins:["SHAQ ATTACK! 💥","DIESEL POWER! ⚙️","SUPERMAN DUNKS! 🦸","KOBE! 😂"],
+    loss:["FREE THROWS HATE ME! 😅","BACKBOARD BROKE! 💀","THE DIESEL MISFIRED! 🔧"] },
+  { id:'durant',   name:'Kevin Dur-ANT',    short:'DURANTBOT', color:'#0369a1', accent:'#fb923c', emoji:'🐜',
+    diff:.73, desc:'7-Footer, Thin-Skinned',
+    wins:["EASY MONEY! 💰","CERTIFIED BUCKET! 🪣","7-FOOTER WINS! 📏","SNAKE GAME! 🐍"],
+    loss:["THE ANT MISSED?! 🐜","BLAME THE KNEE! 🦵","BURNER ACCOUNT INCOMING! 📱"] },
+];
+
+const PLAYER_COLORS = {
+  Austin: { body:'#0ea5e9', accent:'#fbbf24', eye:'#00ff88', fan:'#0284c7' },
+  Jonny:  { body:'#10b981', accent:'#f97316', eye:'#60a5fa', fan:'#059669' },
+};
+
+const SHOTS = {
+  DUNK:  { label:'DUNK 💪',  sub:'Easy  •  2 pts',  pts:2, good:.22, arc:-.55, spd:.024, col:'#ef4444' },
+  TWO:   { label:'2-PT 🏀',  sub:'Normal •  2 pts', pts:2, good:.15, arc:-.95, spd:.026, col:'#3b82f6' },
+  THREE: { label:'3-PT ⭐',  sub:'Hard   •  3 pts', pts:3, good:.09, arc:-1.5, spd:.024, col:'#eab308' },
+};
+
+const SCORE_SAYS = ['YEAH! BOOYAH! 🎉','ON FIRE! 🔥','SWISH! ✨','BUCKET! 🪣','LIGHTS OUT! 💡','MONEY! 💰'];
+const MISS_SAYS  = ['BRICK! 🧱','CLANK! 🔔','NOOO! 💦','MY CIRCUITS! ⚙️','AWWW! 😭','ALMOST! 😬'];
+
+/* ══════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════ */
+let G = { screen: 'NAME_SELECT' };
+let FANS = [], TRAIL = [], PARTS = [];
+
+function startGame(playerName, opp) {
+  const pc = PLAYER_COLORS[playerName] || PLAYER_COLORS.Austin;
+  G = {
+    screen: 'PLAYING',
+    playerName, opp, pc,
+    pScore: 0, cScore: 0,
+    pShots: 0, cShots: 0,
+    turn: 'player',
+    shot: null,          // selected shot key or null
+    aimPos: 0.5, aimDir: 1, aimSpeed: .008,
+    ball: null,
+    pAnim: 'idle', cAnim: 'idle',
+    msg: '', msgCol: '#fff', msgTimer: 0,
+    cpuWait: 0,
+    flash: null, flashT: 0,
+    _pendingName: playerName,
+  };
+  TRAIL = []; PARTS = [];
+  buildFans(playerName, opp);
+  sfx.menu();
+}
+
+/* ══════════════════════════════════════════════
+   FANS
+══════════════════════════════════════════════ */
+function buildFans(pName, opp) {
+  FANS = [];
+  const pc = PLAYER_COLORS[pName] || PLAYER_COLORS.Austin;
+  for (let i = 0; i < 20; i++) {
+    const left = i < 10;
+    // Left side: mostly player fans; right side: mostly CPU fans
+    const isCpu = left ? Math.random() < .25 : Math.random() < .70;
+    FANS.push({
+      slot: i, isCpu,
+      col:    isCpu ? opp.color  : pc.body,
+      accent: isCpu ? opp.accent : pc.accent,
+      tag:    isCpu ? opp.short.slice(0,4) : pName.slice(0,3).toUpperCase(),
+      bounce: 0,
+      phase:  Math.random() * Math.PI * 2,
+      sign:   Math.random() < .38,
+      // slight color variation
+      hue:    (Math.random() - .5) * 30,
+    });
+  }
+}
+
+function cheerFans(forCpu) {
+  FANS.forEach(f => { if (f.isCpu === forCpu) f.bounce = 1.4; });
+}
+
+/* ══════════════════════════════════════════════
+   STARS (persist across games)
+══════════════════════════════════════════════ */
+let STARS = null;
+function ensureStars() {
+  if (!STARS) STARS = Array.from({length:45}, () => ({
+    x: Math.random(), y: Math.random() * .56,
+    r: Math.random() * 1.8 + .35, ph: Math.random() * 6,
+  }));
+}
+
+/* ══════════════════════════════════════════════
+   DRAW HELPERS
+══════════════════════════════════════════════ */
+function rrp(x,y,w,h,r) {
+  CX.beginPath();
+  CX.moveTo(x+r,y); CX.arcTo(x+w,y,x+w,y+h,r);
+  CX.arcTo(x+w,y+h,x,y+h,r); CX.arcTo(x,y+h,x,y,r);
+  CX.arcTo(x,y,x+w,y,r); CX.closePath();
+}
+function rr(x,y,w,h,r,fill,stroke,lw) {
+  rrp(x,y,w,h,r);
+  if (fill)   { CX.fillStyle=fill; CX.fill(); }
+  if (stroke) { CX.strokeStyle=stroke; CX.lineWidth=lw||3; CX.stroke(); }
+}
+function txt(s,x,y,sz,col,align='center',outl,olw=5) {
+  CX.font = `bold ${sz}px 'Comic Sans MS',cursive`;
+  CX.textAlign = align; CX.textBaseline = 'alphabetic';
+  if (outl) { CX.strokeStyle=outl; CX.lineWidth=olw; CX.strokeText(s,x,y); }
+  CX.fillStyle = col; CX.fillText(s,x,y);
+}
+
+/* ══════════════════════════════════════════════
+   LAYOUT
+══════════════════════════════════════════════ */
+const L = {
+  hoopX: () => W * .68,
+  hoopY: () => H * .35,
+  shootX: () => W * .17,
+  shootY: () => H * .64,
+  cpuX:   () => W * .85,
+  cpuY:   () => H * .64,
+  floorY: () => H * .82,
+  standY: () => H * .52,
+};
+
+/* ══════════════════════════════════════════════
+   BACKGROUND
+══════════════════════════════════════════════ */
+function drawBg() {
+  const g = CX.createLinearGradient(0,0,0,L.standY());
+  g.addColorStop(0,'#080818'); g.addColorStop(.5,'#0f1428'); g.addColorStop(1,'#081830');
+  CX.fillStyle=g; CX.fillRect(0,0,W,L.standY());
+  ensureStars();
+  const t = Date.now() * .001;
+  STARS.forEach(s => {
+    CX.beginPath(); CX.arc(s.x*W, s.y*H, s.r, 0, Math.PI*2);
+    CX.fillStyle = `rgba(255,255,255,${.2+.8*Math.abs(Math.sin(t+s.ph))})`;
+    CX.fill();
+  });
+}
+
+function drawStands() {
+  const sy = L.standY(), sh = L.floorY() - sy;
+  // Tiers
+  CX.fillStyle = '#1a1040'; CX.fillRect(0, sy, W, sh * .48);
+  CX.fillStyle = '#140c30'; CX.fillRect(0, sy + sh*.48, W, sh * .52);
+  // Divider lines
+  CX.strokeStyle = 'rgba(255,255,255,.08)'; CX.lineWidth = 1;
+  CX.beginPath(); CX.moveTo(0, sy + sh*.48); CX.lineTo(W, sy + sh*.48); CX.stroke();
+  CX.beginPath(); CX.moveTo(0, sy); CX.lineTo(W, sy); CX.stroke();
+
+  // Draw fans
+  const sz = Math.min(W/22, H*.06);
+  for (let row = 0; row < 2; row++) {
+    const fy = sy + row * (sh*.48) + sz * .9;
+    for (let col = 0; col < 10; col++) {
+      const fan = FANS[row*10 + col];
+      if (!fan) continue;
+      if (fan.bounce > 0) fan.bounce = Math.max(0, fan.bounce - .05);
+      const fx = (col + .5) * W/10;
+      drawFan(fan, fx, fy, sz);
+    }
+  }
+}
+
+function drawFan(fan, cx, cy, sz) {
+  const wave = Math.sin(Date.now()*.002 + fan.phase) * sz * .05;
+  const bUp  = fan.bounce * sz * .2;
+  const dy   = wave - bUp;
+
+  // Body blob
+  CX.beginPath();
+  CX.ellipse(cx, cy + dy, sz*.28, sz*.4, 0, 0, Math.PI*2);
+  CX.fillStyle = fan.col; CX.fill();
+
+  // Head
+  CX.beginPath(); CX.arc(cx, cy - sz*.38 + dy, sz*.22, 0, Math.PI*2);
+  CX.fillStyle = fan.col; CX.fill();
+
+  // Robot-ish square eyes
+  CX.fillStyle = '#fff';
+  [cx-sz*.09, cx+sz*.09].forEach(ex => {
+    rr(ex-sz*.07, cy-sz*.46+dy, sz*.13, sz*.1, sz*.02, '#fff');
+    CX.fillStyle = '#111';
+    CX.fillRect(ex-sz*.03, cy-sz*.44+dy, sz*.06, sz*.06);
+  });
+
+  // Antenna nub
+  CX.beginPath(); CX.arc(cx, cy-sz*.63+dy, sz*.04, 0, Math.PI*2);
+  CX.fillStyle = fan.accent; CX.fill();
+
+  // Arms up when cheering
+  if (fan.bounce > .5) {
+    CX.strokeStyle = fan.col; CX.lineWidth = sz*.1; CX.lineCap = 'round';
+    CX.beginPath(); CX.moveTo(cx-sz*.26, cy+dy); CX.lineTo(cx-sz*.46, cy-sz*.35+dy); CX.stroke();
+    CX.beginPath(); CX.moveTo(cx+sz*.26, cy+dy); CX.lineTo(cx+sz*.46, cy-sz*.35+dy); CX.stroke();
+  }
+
+  // Sign
+  if (fan.sign) {
+    const sx2 = cx + sz*.42, sy2 = cy - sz*.52 + dy;
+    rr(sx2, sy2, sz*.75, sz*.35, sz*.04, fan.accent, fan.col, 2);
+    CX.font = `bold ${sz*.17}px 'Comic Sans MS',cursive`;
+    CX.textAlign = 'center'; CX.fillStyle = fan.col;
+    CX.fillText(`GO ${fan.tag}!`, sx2 + sz*.375, sy2 + sz*.26);
+  }
+}
+
+function drawFloor() {
+  const fy = L.floorY();
+  const g = CX.createLinearGradient(0,fy,0,H);
+  g.addColorStop(0,'#c49a2d'); g.addColorStop(1,'#8b6108');
+  CX.fillStyle=g; CX.fillRect(0,fy,W,H-fy);
+  CX.strokeStyle='rgba(255,255,255,.3)'; CX.lineWidth=2;
+  CX.beginPath(); CX.moveTo(0,fy); CX.lineTo(W,fy); CX.stroke();
+  // Lane dashes
+  CX.setLineDash([12,8]); CX.strokeStyle='rgba(255,255,255,.15)';
+  CX.beginPath(); CX.moveTo(W*.06,fy); CX.lineTo(W*.64,fy); CX.stroke();
+  CX.setLineDash([]);
+}
+
+/* ══════════════════════════════════════════════
+   HOOP
+══════════════════════════════════════════════ */
+function drawHoop() {
+  const hx=L.hoopX(), hy=L.hoopY(), fy=L.floorY();
+  const r=Math.min(W,H)*.038;
+  // 3-point arc on floor
+  CX.beginPath(); CX.arc(hx, fy, W*.28, Math.PI, 0, true);
+  CX.strokeStyle='rgba(255,255,255,.18)'; CX.lineWidth=2; CX.setLineDash([10,7]); CX.stroke();
+  CX.setLineDash([]);
+  txt('3-PT LINE', W*.09, fy-6, H*.02,'rgba(255,255,255,.25)','left');
+  // Pole
+  CX.beginPath(); CX.moveTo(hx+r*1.92,hy+r*2.2); CX.lineTo(hx+r*1.92,fy);
+  CX.strokeStyle='#777'; CX.lineWidth=r*.45; CX.stroke();
+  // Backboard
+  rr(hx+r*1.58, hy-r*2.8, r*.65, r*5.2, r*.1, '#e5e0d0','#8b6914',3);
+  // Arm
+  CX.beginPath(); CX.moveTo(hx+r*1.58,hy-r*.4); CX.lineTo(hx,hy);
+  CX.strokeStyle='#888'; CX.lineWidth=r*.2; CX.stroke();
+  // Net
+  for(let i=0;i<=5;i++) {
+    CX.beginPath();
+    CX.moveTo(hx-r+(i/5)*r*2, hy);
+    CX.lineTo(hx-r*.3+(i/5)*r*.6, hy+r*2);
+    CX.strokeStyle='rgba(255,255,255,.5)'; CX.lineWidth=1.5; CX.stroke();
+  }
+  [.48,.92,1.38,1.84].forEach(yo => {
+    const sp=1-yo/2.5;
+    CX.beginPath(); CX.moveTo(hx-r*sp,hy+yo*r); CX.lineTo(hx+r*sp,hy+yo*r);
+    CX.strokeStyle='rgba(255,255,255,.35)'; CX.lineWidth=1.5; CX.stroke();
+  });
+  // Rim
+  CX.beginPath(); CX.ellipse(hx,hy,r,r*.28,0,0,Math.PI*2);
+  CX.strokeStyle='#dc2626'; CX.lineWidth=r*.32; CX.stroke();
+}
+
+/* ══════════════════════════════════════════════
+   ROBOT
+══════════════════════════════════════════════ */
+function drawRobot(cx, cy, bodyCol, eyeCol, accentCol, anim, label) {
+  const s = Math.min(W,H) * .1;
+  let dy = 0;
+  if (anim==='happy') dy = Math.sin(Date.now()*.014) * 5;
+  if (anim==='jump')  dy = -s*.18 + Math.sin(Date.now()*.04)*s*.04;
+  cy += dy;
+
+  // Shadow
+  CX.beginPath(); CX.ellipse(cx, cy+s*.94, s*.35, s*.07, 0, 0, Math.PI*2);
+  CX.fillStyle='rgba(0,0,0,.3)'; CX.fill();
+
+  // Legs
+  CX.lineCap='round';
+  [-s*.13, s*.13].forEach(lx => {
+    CX.beginPath(); CX.moveTo(cx+lx,cy+s*.76); CX.lineTo(cx+lx,cy+s*1.02);
+    CX.strokeStyle=bodyCol; CX.lineWidth=s*.13; CX.stroke();
+  });
+  rr(cx-s*.28,cy+s*.98,s*.18,s*.1,s*.05,'#555','#333',2);
+  rr(cx+s*.1,cy+s*.98,s*.18,s*.1,s*.05,'#555','#333',2);
+
+  // Body
+  rr(cx-s*.3,cy+s*.1,s*.6,s*.66,s*.09,bodyCol,'#222',3);
+  // Jersey panel
+  rr(cx-s*.2,cy+s*.18,s*.4,s*.4,s*.07,'rgba(0,0,0,.22)');
+  txt('23',cx,cy+s*.48,s*.28,accentCol);
+  // Shoulder stripes
+  rr(cx-s*.3,cy+s*.1,s*.1,s*.16,s*.04,accentCol);
+  rr(cx+s*.2,cy+s*.1,s*.1,s*.16,s*.04,accentCol);
+
+  // Arms
+  if (anim==='shoot'||anim==='jump') {
+    CX.beginPath(); CX.moveTo(cx+s*.3,cy+s*.22); CX.lineTo(cx+s*.6,cy-s*.12);
+    CX.strokeStyle=bodyCol; CX.lineWidth=s*.12; CX.stroke();
+    CX.beginPath(); CX.moveTo(cx-s*.3,cy+s*.22); CX.lineTo(cx-s*.54,cy+s*.34);
+    CX.stroke();
+  } else if (anim==='happy') {
+    [1,-1].forEach(d=>{
+      CX.beginPath(); CX.moveTo(cx+d*s*.3,cy+s*.22); CX.lineTo(cx+d*s*.56,cy+s*.02);
+      CX.strokeStyle=bodyCol; CX.lineWidth=s*.12; CX.stroke();
+    });
+  } else {
+    [1,-1].forEach(d=>{
+      CX.beginPath(); CX.moveTo(cx+d*s*.3,cy+s*.22); CX.lineTo(cx+d*s*.54,cy+s*.42);
+      CX.strokeStyle=bodyCol; CX.lineWidth=s*.12; CX.stroke();
+    });
+  }
+
+  // Head
+  rr(cx-s*.28,cy-s*.38,s*.56,s*.5,s*.1,bodyCol,'#222',3);
+  // Head accent stripe
+  rr(cx-s*.28,cy-s*.38,s*.56,s*.11,0,accentCol);
+  // Antenna
+  CX.beginPath(); CX.moveTo(cx,cy-s*.38); CX.lineTo(cx,cy-s*.63);
+  CX.strokeStyle='#aaa'; CX.lineWidth=2.5; CX.stroke();
+  CX.beginPath(); CX.arc(cx,cy-s*.65,s*.055,0,Math.PI*2);
+  CX.fillStyle = anim==='happy'?'#22c55e':anim==='sad'?'#ef4444':'#fbbf24'; CX.fill();
+
+  // Eyes
+  const ey = cy-s*.2;
+  if (anim==='sad') {
+    CX.font=`bold ${s*.22}px monospace`; CX.textAlign='center';
+    CX.fillStyle='#ef4444';
+    [cx-s*.12,cx+s*.12].forEach(ex=>CX.fillText('X',ex,ey+s*.1));
+  } else if (anim==='happy') {
+    [cx-s*.12,cx+s*.12].forEach(ex=>{
+      CX.beginPath(); CX.arc(ex,ey+s*.05,s*.1,Math.PI,0);
+      CX.strokeStyle=eyeCol; CX.lineWidth=3; CX.stroke();
+    });
+  } else {
+    [cx-s*.12,cx+s*.12].forEach(ex=>{
+      rr(ex-s*.08,ey-s*.08,s*.16,s*.16,s*.04,eyeCol);
+      CX.beginPath(); CX.arc(ex-s*.02,ey-s*.02,s*.03,0,Math.PI*2);
+      CX.fillStyle='rgba(255,255,255,.6)'; CX.fill();
+    });
+  }
+
+  // Mouth
+  if (anim!=='sad') {
+    CX.beginPath(); CX.arc(cx,cy+s*.04,s*.1,.1,Math.PI-.1);
+    CX.strokeStyle='#222'; CX.lineWidth=3; CX.stroke();
+  }
+
+  // Label
+  txt(label, cx, cy+s*1.24, Math.max(11,s*.16),'#fff');
+}
+
+/* ══════════════════════════════════════════════
+   FIRE BALL
+══════════════════════════════════════════════ */
+function drawFireBall(x, y, sz, spin, trail) {
+  // Trail
+  trail.forEach((pt, i) => {
+    const age = (i+1)/trail.length;
+    const ts  = sz * (.5 + age*.7);
+    CX.save(); CX.globalAlpha = age * .8;
+    CX.beginPath(); CX.arc(pt.x, pt.y, ts, 0, Math.PI*2);
+    const tg = CX.createRadialGradient(pt.x,pt.y,0,pt.x,pt.y,ts);
+    tg.addColorStop(0,'rgba(255,255,200,.9)');
+    tg.addColorStop(.4,'rgba(255,100,0,.7)');
+    tg.addColorStop(1,'rgba(200,20,0,0)');
+    CX.fillStyle=tg; CX.fill(); CX.restore();
+  });
+  // Glow halo
+  CX.save();
+  CX.shadowColor='#ff6600'; CX.shadowBlur=sz*2.5;
+  CX.beginPath(); CX.arc(x,y,sz*.8,0,Math.PI*2);
+  CX.fillStyle='#ff4500'; CX.fill();
+  CX.restore();
+  // Ball surface
+  CX.save(); CX.translate(x,y);
+  CX.beginPath(); CX.arc(0,0,sz,0,Math.PI*2);
+  const bg = CX.createRadialGradient(-sz*.3,-sz*.35,sz*.06,0,0,sz);
+  bg.addColorStop(0,'#fff8d0'); bg.addColorStop(.35,'#f97316'); bg.addColorStop(.75,'#dc2626'); bg.addColorStop(1,'#7f1d1d');
+  CX.fillStyle=bg; CX.fill();
+  CX.strokeStyle='rgba(80,10,0,.5)'; CX.lineWidth=1.5; CX.stroke();
+  CX.rotate(spin);
+  CX.strokeStyle='rgba(80,10,0,.45)'; CX.lineWidth=1.5;
+  CX.beginPath(); CX.moveTo(-sz,0); CX.lineTo(sz,0); CX.moveTo(0,-sz); CX.lineTo(0,sz); CX.stroke();
+  CX.restore();
+  // Live flame flickers
+  const t2=Date.now()*.009;
+  for(let i=0;i<5;i++){
+    const a=t2+i*1.26, dist=sz*(.95+Math.sin(t2*2+i)*.2);
+    CX.save(); CX.globalAlpha=.65+.35*Math.sin(t2*3+i);
+    CX.beginPath(); CX.arc(x+Math.cos(a)*dist, y+Math.sin(a)*dist, sz*.16, 0, Math.PI*2);
+    CX.fillStyle=['#fff9c4','#ff8c00','#ff4500','#ffcc00','#ff6600'][i];
+    CX.fill(); CX.restore();
+  }
+}
+
+/* ══════════════════════════════════════════════
+   PARTICLES
+══════════════════════════════════════════════ */
+function burst(x, y, n=25) {
+  const cols=['#fbbf24','#ef4444','#3b82f6','#22c55e','#a855f7','#f97316','#ec4899'];
+  for(let i=0;i<n;i++){
+    const angle=Math.random()*Math.PI*2, spd=Math.random()*12+4;
+    PARTS.push({x,y,vx:Math.cos(angle)*spd,vy:Math.sin(angle)*spd-6,
+      size:Math.random()*12+4,col:cols[~~(Math.random()*cols.length)],life:1,rot:Math.random()*6,rv:(Math.random()-.5)*.3});
+  }
+}
+function fireBurst(x,y){
+  for(let i=0;i<12;i++){
+    const angle=Math.random()*Math.PI*2, spd=Math.random()*9+3;
+    PARTS.push({x,y,vx:Math.cos(angle)*spd,vy:Math.sin(angle)*spd-3,
+      size:Math.random()*18+6,col:['#ff8c00','#ff4500','#ffd700','#ff0','#ff6600'][~~(Math.random()*5)],life:1,rot:0,rv:(Math.random()-.5)*.15,fire:true});
+  }
+}
+function tickParts() {
+  PARTS = PARTS.filter(p=>{
+    p.x+=p.vx; p.y+=p.vy; p.vy+=.42; p.life-=.017; p.rot+=p.rv;
+    return p.life>0;
+  });
+}
+function drawParts() {
+  PARTS.forEach(p=>{
+    CX.save(); CX.translate(p.x,p.y); CX.rotate(p.rot); CX.globalAlpha=p.life;
+    if(p.fire){
+      CX.beginPath(); CX.arc(0,0,p.size/2,0,Math.PI*2);
+      CX.fillStyle=p.col; CX.fill();
+    } else {
+      CX.fillStyle=p.col; CX.fillRect(-p.size/2,-p.size/2,p.size,p.size);
+    }
+    CX.restore();
+  });
+  CX.globalAlpha=1;
+}
+
+/* ══════════════════════════════════════════════
+   BALL ANIMATION
+══════════════════════════════════════════════ */
+function launchBall(shotKey, hit, forCpu) {
+  const def = SHOTS[shotKey];
+  const sx = forCpu ? L.cpuX()-W*.06  : L.shootX()+W*.05;
+  const sy = forCpu ? L.cpuY()-H*.14  : L.shootY()-H*.14;
+  const hx = L.hoopX(), hy = L.hoopY();
+  const offX = hit ? 0 : (Math.random()-.5)*W*.14;
+  const offY = hit ? 0 : (Math.random()-.5)*H*.1;
+  const midX = (sx+hx)*.5 + (forCpu ? W*.04 : -W*.04);
+  const midY = Math.min(sy,hy) + H*def.arc;
+  TRAIL = [];
+  G.ball = { sx,sy, tx:hx+offX, ty:hy+offY, px:midX, py:midY,
+    t:0, spd:def.spd, spin:0, hit, shotKey, forCpu, def, done:false };
+  sfx.whoosh();
+}
+
+function tickBall() {
+  if (!G.ball||G.ball.done) return;
+  const b=G.ball;
+  b.t += b.spd; b.spin += .14;
+  const pos = ballPos();
+  if (pos) TRAIL.push({x:pos.x,y:pos.y});
+  if (TRAIL.length>20) TRAIL.shift();
+  if (b.t >= 1) {
+    b.done = true; TRAIL = [];
+    const hx=L.hoopX(), hy=L.hoopY();
+    if (b.hit) {
+      burst(hx,hy,32); fireBurst(hx,hy);
+      cheerFans(b.forCpu);
+      if (b.forCpu) {
+        G.cScore += b.def.pts; G.cAnim='happy';
+        G.flash=G.opp.color+'44'; G.flashT=14;
+        const qs=G.opp.wins; setMsg(qs[~~(Math.random()*qs.length)], G.opp.accent);
+        b.shotKey==='THREE'?sfx.three():b.shotKey==='DUNK'?sfx.dunk():sfx.cpu();
+      } else {
+        G.pScore += b.def.pts; G.pAnim='happy';
+        G.flash=G.pc.body+'44'; G.flashT=14;
+        const qs=SCORE_SAYS; setMsg(qs[~~(Math.random()*qs.length)],'#22c55e');
+        b.shotKey==='THREE'?sfx.three():b.shotKey==='DUNK'?sfx.dunk():sfx.score();
+        sfx.crowd(true);
+      }
+    } else {
+      const ox=(Math.random()-.5)*60, oy=(Math.random()-.5)*40;
+      burst(hx+ox,hy+oy,10);
+      if (b.forCpu) {
+        G.cAnim='sad';
+        const qs=G.opp.loss; setMsg(qs[~~(Math.random()*qs.length)],'#94a3b8');
+        sfx.miss();
+      } else {
+        G.pAnim='sad';
+        setMsg(MISS_SAYS[~~(Math.random()*MISS_SAYS.length)],'#ef4444');
+        sfx.miss(); sfx.crowd(false);
+      }
+    }
+    setTimeout(()=>{ G.ball=null; TRAIL=[]; G.pAnim='idle'; G.cAnim='idle'; nextTurn(); }, 1400);
+  }
+}
+
+function ballPos() {
+  if (!G.ball) return null;
+  const {sx,sy,px,py,tx,ty,t}=G.ball;
+  return {
+    x:(1-t)*(1-t)*sx+2*(1-t)*t*px+t*t*tx,
+    y:(1-t)*(1-t)*sy+2*(1-t)*t*py+t*t*ty,
+  };
+}
+
+/* ══════════════════════════════════════════════
+   MESSAGES
+══════════════════════════════════════════════ */
+function setMsg(s, col) { G.msg=s; G.msgCol=col||'#fff'; G.msgTimer=100; }
+function drawMsg() {
+  if (G.msgTimer<=0) return;
+  const a=Math.min(1,G.msgTimer/25);
+  CX.save(); CX.globalAlpha=a;
+  const sz=Math.min(H*.072,W*.058);
+  txt(G.msg, W/2, H*.55, sz, G.msgCol,'center','#000',6);
+  CX.restore();
+  G.msgTimer--;
+}
+
+/* ══════════════════════════════════════════════
+   HUD
+══════════════════════════════════════════════ */
+function drawHUD() {
+  const pw=Math.min(W*.54,380), ph=H*.09, px=W/2-pw/2, py=H*.01;
+  rr(px,py,pw,ph,ph*.2,'rgba(0,0,0,.72)','#fbbf24',2);
+  const sz=Math.min(ph*.41,21);
+  txt(`${G.playerName}: ${G.pScore}`, px+pw*.07, py+ph*.68, sz, G.pc.body,'left');
+  txt(`${G.opp.short}: ${G.cScore}`, px+pw*.93, py+ph*.68, sz, G.opp.color,'right');
+  const shot=Math.min(G.pShots+(G.turn==='cpu'?1:0),5);
+  txt(`Shot ${shot} / 5`, W/2, py+ph+H*.027, H*.023,'#fbbf24');
+}
+
+/* ══════════════════════════════════════════════
+   SHOT BUTTONS
+══════════════════════════════════════════════ */
+const SHOT_BTNS = ['DUNK','TWO','THREE'];
+let hoverBtn = null;
+
+function getShotBtns() {
+  const bw=Math.min(W*.28,168), bh=H*.12, gap=W*.022;
+  const tot=bw*3+gap*2, sx=(W-tot)/2;
+  return SHOT_BTNS.map((k,i)=>({ k, def:SHOTS[k], x:sx+i*(bw+gap), y:H*.86, w:bw, h:bh }));
+}
+
+function drawShotBtns() {
+  txt('CHOOSE YOUR SHOT:', W/2, H*.838, H*.031,'#fff','center','#000',3);
+  txt('[Keys 1=DUNK  2=2PT  3=3PT]', W/2, H*.982, H*.022,'rgba(255,255,255,.45)');
+  getShotBtns().forEach(b=>{
+    const hov=hoverBtn===b.k;
+    CX.save();
+    CX.translate(b.x+b.w/2, b.y+b.h/2);
+    if(hov) CX.scale(1.07,1.07);
+    rr(-b.w/2,-b.h/2,b.w,b.h,12, b.def.col+'cc', hov?'#fff':b.def.col, hov?3:2);
+    txt(b.def.label, 0, -b.h*.08, Math.min(b.w*.22,18),'#fff');
+    txt(b.def.sub,   0,  b.h*.28, Math.min(b.w*.16,13),'rgba(255,255,255,.8)');
+    CX.restore();
+  });
+}
+
+/* ══════════════════════════════════════════════
+   AIM BAR
+══════════════════════════════════════════════ */
+function drawAimBar() {
+  const bw=Math.min(W*.56,410), bh=H*.065, bx=W/2-bw/2, by=H*.86;
+  const def=SHOTS[G.shot], hg=def.good;
+
+  const zones=[
+    [0,      .5-hg*2, '#7f1d1d'],
+    [.5-hg*2,.5-hg,   '#c2410c'],
+    [.5-hg,  .5+hg,   '#ca8a04'],
+    [.5+hg,  .5+hg*2, '#c2410c'],
+    [.5+hg*2,1,       '#7f1d1d'],
+  ];
+  rr(bx,by,bw,bh,bh/2,'#111','#555',2);
+  CX.save(); rrp(bx,by,bw,bh,bh/2); CX.clip();
+  zones.forEach(([s,e,c])=>{ CX.fillStyle=c; CX.fillRect(bx+s*bw,by,(e-s)*bw,bh); });
+  CX.restore();
+  rr(bx,by,bw,bh,bh/2,null,'rgba(255,255,255,.45)',2);
+
+  CX.font=`bold ${bh*.35}px 'Comic Sans MS',cursive`;
+  CX.textAlign='center'; CX.fillStyle='rgba(0,0,0,.5)';
+  CX.fillText('MISS',bx+bw*.09,by+bh*.7);
+  CX.fillText('MISS',bx+bw*.91,by+bh*.7);
+  CX.fillText(def.good<.1?'⭐⭐⭐':'⭐',W/2,by+bh*.72);
+
+  const cx2=bx+G.aimPos*bw;
+  CX.beginPath(); CX.moveTo(cx2,by-2); CX.lineTo(cx2-bh*.28,by-bh*.72); CX.lineTo(cx2+bh*.28,by-bh*.72); CX.closePath();
+  CX.fillStyle='#fff'; CX.fill(); CX.strokeStyle='#222'; CX.lineWidth=2; CX.stroke();
+
+  const p=.7+.3*Math.sin(Date.now()*.01);
+  CX.globalAlpha=p;
+  txt(`👆 TAP TO SHOOT!    [SPACE or ENTER]`, W/2, by-bh*.3, H*.036,'#fff');
+  CX.globalAlpha=1;
+  txt(def.label, W/2, by+bh+H*.034, H*.028, def.col);
+}
+
+/* ══════════════════════════════════════════════
+   TURNS
+══════════════════════════════════════════════ */
+function nextTurn() {
+  G.shot = null;
+  if (G.pShots>=5 && G.cShots>=5) { setTimeout(()=>G.screen='GAMEOVER',700); return; }
+  if (G.turn==='player') { G.turn='cpu'; G.screen='CPU_TURN'; G.cpuWait=85; }
+  else                   { G.turn='player'; G.screen='PLAYING'; }
+}
+
+function cpuShoot() {
+  G.cShots++;
+  const r=Math.random();
+  const sk = r<.22?'THREE': r<.42?'DUNK':'TWO';
+  const def=SHOTS[sk];
+  const acc=G.opp.diff + (sk==='DUNK'?.08:sk==='THREE'?-.16:0);
+  const hit=Math.random()<acc;
+  G.cAnim='shoot'; G.screen='ANIMATING'; G.shot=sk;
+  launchBall(sk, hit, true);
+}
+
+/* ══════════════════════════════════════════════
+   ZONE CHECK
+══════════════════════════════════════════════ */
+function checkZone(pos, sk) {
+  return Math.abs(pos-.5) <= SHOTS[sk].good;
+}
+
+/* ══════════════════════════════════════════════
+   SCREENS
+══════════════════════════════════════════════ */
+function drawTitle(y=H*.17) {
+  const sc=1+.03*Math.sin(Date.now()*.003);
+  CX.save(); CX.translate(W/2,y); CX.scale(sc,sc);
+  CX.shadowColor='#ff6600'; CX.shadowBlur=35;
+  txt('🔥 DRJVSBIRD 🔥', 0, 0, Math.min(H*.12,W*.09),'#f97316','center','#7c2d12',8);
+  CX.restore();
+  txt('ROBOT BASKETBALL CHAMPIONSHIP!', W/2, y+H*.1, Math.min(H*.038,W*.028),'#fbbf24');
+}
+
+function drawNameSelect() {
+  drawBg(); drawFloor();
+  drawTitle(H*.16);
+  txt('CHOOSE YOUR PLAYER!', W/2, H*.37, Math.min(H*.048,W*.038),'#fff','center','#000',4);
+
+  const bw=Math.min(W*.29,190), bh=H*.16, gap=W*.055;
+  const sx=(W-bw*2-gap)/2;
+  const opts=[
+    {name:'Austin',x:sx,    col:PLAYER_COLORS.Austin.body, acc:PLAYER_COLORS.Austin.accent},
+    {name:'Jonny', x:sx+bw+gap,col:PLAYER_COLORS.Jonny.body,  acc:PLAYER_COLORS.Jonny.accent},
+  ];
+  opts.forEach(o=>{
+    const hov=_mouse&&_mouse.x>=o.x&&_mouse.x<=o.x+bw&&_mouse.y>=H*.43&&_mouse.y<=H*.43+bh;
+    rr(o.x,H*.43,bw,bh,16,o.col+(hov?'ff':'bb'),hov?'#fff':o.col,hov?3:2);
+    txt(o.name, o.x+bw/2, H*.43+bh*.62, Math.min(H*.07,bw*.3),'#fff');
+    // mini robot
+    CX.save(); CX.scale(.42,.42);
+    drawRobot((o.x+bw/2)/.42, (H*.43)/.42 - H*.55, o.col,'#00ff88',o.acc,'idle','');
+    CX.restore();
+  });
+
+  const p=.65+.35*Math.sin(Date.now()*.008);
+  CX.globalAlpha=p; txt('👆 TAP YOUR NAME TO BEGIN!',W/2,H*.68,H*.038,'#fff'); CX.globalAlpha=1;
+  txt('[A] = Austin   [J] = Jonny', W/2, H*.74, H*.023,'rgba(255,255,255,.5)');
+}
+
+function drawOpponentSelect() {
+  drawBg(); drawFloor();
+  drawTitle(H*.13);
+  txt('PICK YOUR OPPONENT!', W/2, H*.34, Math.min(H*.046,W*.036),'#fff','center','#000',4);
+
+  const n=OPPONENTS.length;
+  const cw=Math.min(W*.2,148), ch=H*.34, gap=W*.018;
+  const tot=n*(cw+gap)-gap, sx=(W-tot)/2;
+
+  OPPONENTS.forEach((opp,i)=>{
+    const cx2=sx+i*(cw+gap), cy2=H*.38;
+    const hov=_mouse&&_mouse.x>=cx2&&_mouse.x<=cx2+cw&&_mouse.y>=cy2&&_mouse.y<=cy2+ch;
+    CX.save(); CX.translate(cx2+cw/2, cy2+ch/2);
+    if(hov) CX.scale(1.06,1.06);
+    rr(-cw/2,-ch/2,cw,ch,14, opp.color+'cc', hov?'#fff':opp.accent, hov?3:2);
+    txt(opp.emoji, 0, -ch*.33, ch*.17,'#fff');
+    // name (may be long, shrink)
+    const nSz=Math.min(cw*.13,12);
+    const parts=opp.name.split(' ');
+    parts.forEach((p2,pi)=>txt(p2, 0, -ch*.12+pi*nSz*1.4, nSz,'#fff'));
+    const diffLbl=opp.diff>=.73?'HARD':opp.diff>=.65?'MEDIUM':'EASY';
+    const diffCol=opp.diff>=.73?'#ef4444':opp.diff>=.65?'#f97316':'#22c55e';
+    txt(diffLbl, 0, ch*.24, Math.min(cw*.15,13), diffCol);
+    txt(opp.desc, 0, ch*.36, Math.min(cw*.1,9),'rgba(255,255,255,.65)');
+    txt(`[${i+1}]`, 0, ch*.44, Math.min(cw*.13,11),'rgba(255,255,255,.45)');
+    CX.restore();
+  });
+
+  const p=.65+.35*Math.sin(Date.now()*.008);
+  CX.globalAlpha=p; txt('👆 TAP AN OPPONENT!',W/2,H*.82,H*.04,'#fff'); CX.globalAlpha=1;
+}
+
+function drawPlaying() {
+  drawBg(); drawStands(); drawFloor(); drawHoop();
+  // Screen flash
+  if(G.flashT>0){ CX.fillStyle=G.flash; CX.fillRect(0,0,W,H); G.flashT--; }
+  drawRobot(L.shootX(),L.shootY(),G.pc.body,G.pc.eye,G.pc.accent,G.pAnim,G.playerName);
+  drawRobot(L.cpuX(),L.cpuY(),G.opp.color,'#eee',G.opp.accent,G.cAnim,G.opp.short);
+  const bp=ballPos();
+  if(bp){ const sz=Math.min(W,H)*.038*(1+G.ball.t*.12); drawFireBall(bp.x,bp.y,sz,G.ball.spin,TRAIL); }
+  drawParts(); drawHUD(); drawMsg();
+}
+
+function drawGameOver() {
+  drawBg(); drawFloor();
+  const won=G.pScore>G.cScore, tied=G.pScore===G.cScore;
+  rr(W*.06,H*.1,W*.88,H*.68,20,'rgba(0,0,0,.86)','#fbbf24',3);
+  const rsz=Math.min(H*.1,W*.08);
+  if(tied)      txt("IT'S A TIE! 🤝",W/2,H*.26,rsz,'#fbbf24','center','#000',6);
+  else if(won){ txt('YOU WIN! 🏆',    W/2,H*.26,rsz,'#22c55e','center','#000',6); burst(W/2,H*.26,5); }
+  else          txt('CPU WINS! 🤖',   W/2,H*.26,rsz,'#ef4444','center','#000',6);
+  const sc2=Math.min(H*.064,W*.052);
+  txt(`${G.playerName}: ${G.pScore} pts`, W/2, H*.4, sc2, G.pc.body);
+  txt(`${G.opp.name}: ${G.cScore} pts`,  W/2, H*.5, sc2, G.opp.color);
+  drawRobot(W*.24,H*.72,G.pc.body,G.pc.eye,G.pc.accent,won?'happy':'sad',G.playerName);
+  drawRobot(W*.76,H*.72,G.opp.color,'#eee',G.opp.accent,won?'sad':'happy',G.opp.short);
+  const p=.65+.35*Math.sin(Date.now()*.008);
+  CX.globalAlpha=p; txt('👆 TAP TO PLAY AGAIN!  [SPACE]',W/2,H*.88,H*.042,'#fff'); CX.globalAlpha=1;
+  drawParts();
+}
+
+/* ══════════════════════════════════════════════
+   INPUT
+══════════════════════════════════════════════ */
+let _mouse = null;
+CV.addEventListener('mousemove', e => {
+  _mouse = {x:e.clientX, y:e.clientY};
+  if(G.screen==='PLAYING'&&!G.shot){
+    hoverBtn=null;
+    getShotBtns().forEach(b=>{ if(_mouse.x>=b.x&&_mouse.x<=b.x+b.w&&_mouse.y>=b.y&&_mouse.y<=b.y+b.h) hoverBtn=b.k; });
+  }
+});
+
+function handlePointer(px, py) {
+  resume();
+  const s = G.screen;
+
+  if (s==='NAME_SELECT') {
+    const bw=Math.min(W*.29,190), bh=H*.16, gap=W*.055;
+    const sx=(W-bw*2-gap)/2;
+    if(py>=H*.43&&py<=H*.43+bh){
+      if(px>=sx&&px<=sx+bw)         { sfx.select(); G._name='Austin'; G.screen='OPPONENT_SELECT'; return; }
+      if(px>=sx+bw+gap&&px<=sx+bw*2+gap){ sfx.select(); G._name='Jonny';  G.screen='OPPONENT_SELECT'; return; }
+    }
+    return;
+  }
+
+  if (s==='OPPONENT_SELECT') {
+    const n=OPPONENTS.length, cw=Math.min(W*.2,148), ch=H*.34, gap=W*.018;
+    const tot=n*(cw+gap)-gap, sx=(W-tot)/2;
+    OPPONENTS.forEach((opp,i)=>{
+      const cx2=sx+i*(cw+gap), cy2=H*.38;
+      if(px>=cx2&&px<=cx2+cw&&py>=cy2&&py<=cy2+ch){ sfx.select(); startGame(G._name||'Austin',opp); }
+    });
+    return;
+  }
+
+  if (s==='PLAYING') {
+    if (!G.shot) {
+      getShotBtns().forEach(b=>{ if(px>=b.x&&px<=b.x+b.w&&py>=b.y&&py<=b.y+b.h){ G.shot=b.k; sfx.select(); } });
+    } else {
+      sfx.tap();
+      const hit=checkZone(G.aimPos,G.shot);
+      G.pShots++; G.pAnim='shoot'; G.screen='ANIMATING';
+      launchBall(G.shot,hit,false);
+    }
+    return;
+  }
+
+  if (s==='GAMEOVER') { G.screen='NAME_SELECT'; sfx.tap(); }
+}
+
+CV.addEventListener('click', e=>handlePointer(e.clientX,e.clientY));
+CV.addEventListener('touchstart', e=>{ e.preventDefault(); resume(); const t=e.touches[0]; handlePointer(t.clientX,t.clientY); },{passive:false});
+
+document.addEventListener('keydown', e=>{
+  resume();
+  const s=G.screen;
+  if(s==='NAME_SELECT'){
+    if(e.key.toLowerCase()==='a'||e.key.toLowerCase()==='1'){ sfx.select(); G._name='Austin'; G.screen='OPPONENT_SELECT'; }
+    if(e.key.toLowerCase()==='j'||e.key.toLowerCase()==='2'){ sfx.select(); G._name='Jonny';  G.screen='OPPONENT_SELECT'; }
+  }
+  if(s==='OPPONENT_SELECT'){
+    const n=parseInt(e.key);
+    if(n>=1&&n<=OPPONENTS.length){ sfx.select(); startGame(G._name||'Austin',OPPONENTS[n-1]); }
+  }
+  if(s==='PLAYING'){
+    if(e.key==='1'){ G.shot='DUNK';  sfx.select(); return; }
+    if(e.key==='2'){ G.shot='TWO';   sfx.select(); return; }
+    if(e.key==='3'){ G.shot='THREE'; sfx.select(); return; }
+    if((e.code==='Space'||e.code==='Enter')&&G.shot){
+      e.preventDefault();
+      sfx.tap();
+      const hit=checkZone(G.aimPos,G.shot);
+      G.pShots++; G.pAnim='shoot'; G.screen='ANIMATING';
+      launchBall(G.shot,hit,false);
+    }
+  }
+  if(s==='GAMEOVER'&&(e.code==='Space'||e.code==='Enter')){ G.screen='NAME_SELECT'; sfx.tap(); }
+});
+
+/* ══════════════════════════════════════════════
+   MAIN LOOP
+══════════════════════════════════════════════ */
+function loop() {
+  requestAnimationFrame(loop);
+  try {
+    CX.clearRect(0,0,W,H);
+
+    switch(G.screen) {
+      case 'NAME_SELECT':
+        drawNameSelect();
+        break;
+
+      case 'OPPONENT_SELECT':
+        drawOpponentSelect();
+        break;
+
+      case 'PLAYING':
+        G.aimPos += G.aimDir * G.aimSpeed;
+        if(G.aimPos>=1){ G.aimPos=1; G.aimDir=-1; }
+        if(G.aimPos<=0){ G.aimPos=0; G.aimDir=1; }
+        G.aimSpeed = .007 + (G.pShots+G.cShots)*.00065;
+        drawPlaying();
+        G.shot ? drawAimBar() : drawShotBtns();
+        break;
+
+      case 'ANIMATING':
+        tickBall(); tickParts();
+        drawPlaying();
+        drawHUD();
+        break;
+
+      case 'CPU_TURN': {
+        G.cpuWait--;
+        if(G.cpuWait<=0) cpuShoot();
+        drawPlaying();
+        const p2=.65+.35*Math.sin(Date.now()*.01);
+        CX.globalAlpha=p2;
+        txt(G.opp.name+' is scheming... '+G.opp.emoji, W/2, H*.9, H*.042, G.opp.accent);
+        CX.globalAlpha=1;
+        break;
+      }
+
+      case 'GAMEOVER':
+        tickParts(); drawGameOver();
+        break;
+    }
+  } catch(err) {
+    CX.fillStyle='#fff'; CX.fillRect(0,0,W,H);
+    CX.fillStyle='#c00'; CX.font='bold 20px sans-serif'; CX.textAlign='left';
+    CX.fillText('Error: '+err.message, 16, 40);
+    CX.fillStyle='#333'; CX.font='14px monospace';
+    (err.stack||'').split('\n').slice(0,6).forEach((l,i)=>CX.fillText(l,16,70+i*18));
+  }
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
