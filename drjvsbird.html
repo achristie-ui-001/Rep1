@@ -22,17 +22,24 @@ resize();
 window.addEventListener('resize', resize);
 
 /* ══════════════════════════════════════════════
-   AUDIO
+   AUDIO  (lazy init — safe on iOS)
 ══════════════════════════════════════════════ */
-const AC = new (window.AudioContext || window.webkitAudioContext)();
+let _AC = null;
+function getAC() {
+  if (!_AC) { try { _AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} }
+  return _AC;
+}
 function tone(f, d, type='square', vol=0.3, delay=0) {
-  const o = AC.createOscillator(), g = AC.createGain();
-  const t0 = AC.currentTime + delay;
-  o.connect(g); g.connect(AC.destination);
+  const ac = getAC(); if (!ac) return;
+  try {
+  const o = ac.createOscillator(), g = ac.createGain();
+  const t0 = ac.currentTime + delay;
+  o.connect(g); g.connect(ac.destination);
   o.type = type; o.frequency.setValueAtTime(f, t0);
   g.gain.setValueAtTime(vol, t0);
   g.gain.exponentialRampToValueAtTime(0.001, t0 + d);
   o.start(t0); o.stop(t0 + d);
+  } catch(e) {}
 }
 const sfx = {
   tap:    () => tone(500, .05, 'square', .2),
@@ -46,7 +53,7 @@ const sfx = {
   menu:   () => [330,392,494,659].forEach((f,i)=>tone(f,.1,'square',.2,i*.08)),
   crowd:  (pos) => { for(let i=0;i<6;i++) tone(180+Math.random()*350,.3+Math.random()*.4,'sine',.05+Math.random()*.05,i*.04); if(pos) for(let i=0;i<4;i++) tone(550+Math.random()*200,.2,'sine',.07,i*.05+.2); },
 };
-const resume = () => { if(AC.state==='suspended') AC.resume(); };
+const resume = () => { try { const ac=getAC(); if(ac && ac.state==='suspended') ac.resume(); } catch(e) {} };
 
 /* ══════════════════════════════════════════════
    GAME DATA
@@ -861,45 +868,54 @@ document.addEventListener('keydown', e=>{
 ══════════════════════════════════════════════ */
 function loop() {
   requestAnimationFrame(loop);
-  CX.clearRect(0,0,W,H);
+  try {
+    CX.clearRect(0,0,W,H);
 
-  switch(G.screen) {
-    case 'NAME_SELECT':
-      drawNameSelect();
-      break;
+    switch(G.screen) {
+      case 'NAME_SELECT':
+        drawNameSelect();
+        break;
 
-    case 'OPPONENT_SELECT':
-      drawOpponentSelect();
-      break;
+      case 'OPPONENT_SELECT':
+        drawOpponentSelect();
+        break;
 
-    case 'PLAYING':
-      G.aimPos += G.aimDir * G.aimSpeed;
-      if(G.aimPos>=1){ G.aimPos=1; G.aimDir=-1; }
-      if(G.aimPos<=0){ G.aimPos=0; G.aimDir=1; }
-      G.aimSpeed = .007 + (G.pShots+G.cShots)*.00065;
-      drawPlaying();
-      G.shot ? drawAimBar() : drawShotBtns();
-      break;
+      case 'PLAYING':
+        G.aimPos += G.aimDir * G.aimSpeed;
+        if(G.aimPos>=1){ G.aimPos=1; G.aimDir=-1; }
+        if(G.aimPos<=0){ G.aimPos=0; G.aimDir=1; }
+        G.aimSpeed = .007 + (G.pShots+G.cShots)*.00065;
+        drawPlaying();
+        G.shot ? drawAimBar() : drawShotBtns();
+        break;
 
-    case 'ANIMATING':
-      tickBall(); tickParts();
-      drawPlaying();
-      drawHUD();
-      break;
+      case 'ANIMATING':
+        tickBall(); tickParts();
+        drawPlaying();
+        drawHUD();
+        break;
 
-    case 'CPU_TURN':
-      G.cpuWait--;
-      if(G.cpuWait<=0) cpuShoot();
-      drawPlaying();
-      const p2=.65+.35*Math.sin(Date.now()*.01);
-      CX.globalAlpha=p2;
-      txt(`${G.opp.name} is scheming... ${G.opp.emoji}`, W/2, H*.9, H*.042, G.opp.accent);
-      CX.globalAlpha=1;
-      break;
+      case 'CPU_TURN': {
+        G.cpuWait--;
+        if(G.cpuWait<=0) cpuShoot();
+        drawPlaying();
+        const p2=.65+.35*Math.sin(Date.now()*.01);
+        CX.globalAlpha=p2;
+        txt(G.opp.name+' is scheming... '+G.opp.emoji, W/2, H*.9, H*.042, G.opp.accent);
+        CX.globalAlpha=1;
+        break;
+      }
 
-    case 'GAMEOVER':
-      tickParts(); drawGameOver();
-      break;
+      case 'GAMEOVER':
+        tickParts(); drawGameOver();
+        break;
+    }
+  } catch(err) {
+    CX.fillStyle='#fff'; CX.fillRect(0,0,W,H);
+    CX.fillStyle='#c00'; CX.font='bold 20px sans-serif'; CX.textAlign='left';
+    CX.fillText('Error: '+err.message, 16, 40);
+    CX.fillStyle='#333'; CX.font='14px monospace';
+    (err.stack||'').split('\n').slice(0,6).forEach((l,i)=>CX.fillText(l,16,70+i*18));
   }
 }
 
