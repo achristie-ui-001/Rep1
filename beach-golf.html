@@ -73,6 +73,11 @@
   .btn.s3{ background:linear-gradient(180deg,#ffb49a,#ff6a45); box-shadow:0 5px 0 #a83a1c,0 10px 18px rgba(0,0,0,.34); color:#3d1207; }
   .btn.s3:active{ box-shadow:0 1px 0 #a83a1c,0 4px 10px rgba(0,0,0,.3); }
 
+  .feats{ display:flex; flex-wrap:wrap; gap:5px; justify-content:center; margin-top:11px; }
+  .feat{
+    font-size:10.5px; font-weight:800; padding:4px 8px; border-radius:999px;
+    background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.18); white-space:nowrap;
+  }
   .grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin:14px 0 4px; }
   .cell{
     background:rgba(255,255,255,.09); border:1px solid rgba(255,255,255,.17); border-radius:13px;
@@ -89,6 +94,17 @@
   .rt{ font-size:clamp(20px,6.2vw,27px); font-weight:900; }
   .rs{ font-size:13px; opacity:.85; font-weight:700; margin-top:1px; }
   .stars{ font-size:27px; letter-spacing:5px; color:#ffd76b; margin-top:6px; text-shadow:0 2px 6px rgba(255,190,60,.4); }
+  .styleBox{
+    margin:12px 0 2px; padding:9px 11px; border-radius:13px; text-align:left;
+    background:rgba(0,0,0,.22); border:1px solid rgba(255,214,107,.28);
+  }
+  .styleHead{
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:10.5px; letter-spacing:1.1px; font-weight:900; color:#ffd76b; margin-bottom:5px;
+  }
+  .styleHead b{ font-size:17px; letter-spacing:0; }
+  .srow{ display:flex; justify-content:space-between; font-size:11.5px; font-weight:700; opacity:.9; padding:1.5px 0; }
+  .srow span:last-child{ color:#ffd76b; }
   .nb{ color:#ffd76b; font-weight:900; font-size:13px; margin-top:6px; }
   .nb.hidden{ display:none; }
 
@@ -135,6 +151,7 @@
     <div class="chip" id="cPar">Par 3</div>
     <div class="chip" id="cStr">Shots <b>0</b></div>
     <div class="chip" id="cTot">Total E</div>
+    <div class="chip" id="cStyle">⭐ 0</div>
   </div>
   <div class="grp btns">
     <button id="bRetry" aria-label="Replay hole">↺</button>
@@ -183,7 +200,8 @@
     <div class="sub" style="margin:0 0 2px; letter-spacing:2px; font-size:11px; opacity:.7" id="iNum">HOLE 1</div>
     <div class="ttl" id="iName">Sandpiper Straight</div>
     <div class="sub" id="iBlurb"></div>
-    <div class="sub" style="margin-top:10px"><span class="chip" id="iPar">Par 3</span> <span class="chip" id="iBest">Best —</span></div>
+    <div class="feats" id="iFeat"></div>
+    <div class="sub" style="margin-top:10px"><span class="chip" id="iPar">Par 3</span> <span class="chip" id="iBest">Best —</span> <span class="chip" id="iMult">⭐ Style ×1</span></div>
     <button class="btn" id="bTee">TEE OFF ▶</button>
   </div>
 </div>
@@ -194,6 +212,10 @@
     <div class="rt" id="dTitle">PAR</div>
     <div class="rs" id="dSub">3 shots</div>
     <div class="stars" id="dStars">★★★</div>
+    <div class="styleBox">
+      <div class="styleHead"><span>⭐ STYLE POINTS</span><b id="dStyleTot">+0</b></div>
+      <div id="dStyleList"></div>
+    </div>
     <div class="nb hidden" id="dBest">🏆 New personal best!</div>
     <button class="btn" id="bNext">NEXT HOLE ▶</button>
     <button class="btn s2" id="bAgain">REPLAY HOLE</button>
@@ -204,8 +226,12 @@
   <div class="panel">
     <div class="ttl" style="font-size:23px">🏁 Round Complete</div>
     <table class="card" id="cardTbl"></table>
-    <div class="rt" id="cTotal">Total 41 (E)</div>
+    <div class="rt" id="cTotal">Total 42 (E)</div>
     <div class="rs" id="cGrade"></div>
+    <div class="styleBox" style="text-align:center">
+      <div class="styleHead" style="justify-content:center"><span id="cStyleTot">⭐ 0 style points</span></div>
+      <div class="srow" style="justify-content:center; color:#ffd76b" id="cStyleBest"></div>
+    </div>
     <div class="nb hidden" id="cBest">🏆 New best round!</div>
     <button class="btn" id="bReplayAll">PLAY AGAIN</button>
     <button class="btn s2" id="bCardPick">PICK A HOLE</button>
@@ -427,79 +453,93 @@ const PALETTE = {
 
 const HOLES = [
 {
-  name:'Sandpiper Straight', par:2, pal:'links',
-  blurb:'A gentle opener along the dunes. Learn the drag, learn the roll.',
+  name:'Sandpiper Straight', par:2, pal:'links', styleMult:1,
+  blurb:'A gentle opener along the dunes. Ride the boost pad, dodge the crab, learn the roll.',
   tee:{x:210,y:748}, cup:{x:210,y:198},
   pads:[ PA([{x:210,y:756},{x:210,y:642},{x:176,y:544},{x:202,y:440},{x:210,y:336},{x:210,y:190}],120) ],
+  boosts:[ {x:201,y:440,r:26,dir:{x:.08,y:-.997},power:470} ],
+  movers:[ {kind:'crab',a:{x:172,y:262},b:{x:246,y:262},r:14,period:2700} ],
   sand:[ C(166,520,36) ],
   decor:[ {t:'torch',x:288,y:642},{t:'torch',x:288,y:336},{t:'palm',x:96,y:648,s:1},
           {t:'palm',x:330,y:470,s:.85},{t:'rock',x:64,y:300,r:17},{t:'shell',x:286,y:560} ]
 },
 {
-  name:'The Postage Stamp', par:2, pal:'links',
-  blurb:'Royal Troon\'s 8th: the smallest target in championship golf, ringed by bunkers that swallow anything loose.',
+  name:'The Postage Stamp', par:2, pal:'links', styleMult:1.5,
+  blurb:'Royal Troon\'s 8th: the smallest target in championship golf, ringed by bunkers that swallow anything loose. A rescue boost sits on the left if you leak one.',
   tee:{x:210,y:742}, cup:{x:210,y:436},
   pads:[ PA([{x:210,y:752},{x:210,y:566}],104), C(210,452,98) ],
+  boosts:[ {x:152,y:466,r:22,dir:{x:.89,y:-.46},power:390} ],
+  movers:[ {kind:'crab',a:{x:174,y:604},b:{x:246,y:604},r:14,period:2100} ],
   sand:[ C(138,396,42), C(282,396,42), C(128,506,38), C(292,506,38), C(210,362,34) ],
   decor:[ {t:'torch',x:150,y:600},{t:'torch',x:270,y:600},{t:'rock',x:66,y:430,r:19},
           {t:'rock',x:356,y:430,r:19},{t:'palm',x:96,y:690,s:.8} ]
 },
 {
-  name:'Palm Dogleg', par:3, pal:'tropic',
-  blurb:'A hard right bend with palm trunks planted on the inside corner. Cut it too fine and you\'re rattling around in timber.',
+  name:'Palm Dogleg', par:3, pal:'tropic', styleMult:1.5,
+  blurb:'A hard right bend with palm trunks planted on the inside corner. There is a slingshot pad on the turn — hit it and you whip around the dogleg.',
   tee:{x:120,y:744}, cup:{x:300,y:236},
   pads:[ PA([{x:120,y:754},{x:120,y:520},{x:300,y:428},{x:300,y:212}],[118,118,102,106]) ],
   cut:[ C(198,476,17), C(300,352,15) ],
+  boosts:[ {x:142,y:530,r:25,dir:{x:.87,y:-.49},power:540} ],
+  movers:[ {kind:'crab',a:{x:266,y:300},b:{x:334,y:300},r:15,period:2200} ],
   sand:[ C(300,300,34) ],
   decor:[ {t:'palm',x:198,y:476,s:1.05,onCourse:1},{t:'palm',x:300,y:352,s:.92,onCourse:1},
           {t:'palm',x:46,y:600,s:1},{t:'torch',x:238,y:604},{t:'rock',x:372,y:600,r:18},{t:'shell',x:206,y:706} ]
 },
 {
-  name:'Island Green', par:3, pal:'reef',
-  blurb:'TPC Sawgrass\'s 17th. One narrow causeway, one island, and the Atlantic everywhere else. No walls out here.',
+  name:'Island Green', par:3, pal:'reef', styleMult:2,
+  blurb:'TPC Sawgrass\'s 17th. One narrow causeway, one island, and the Atlantic everywhere else. No walls out here — and a crab patrolling the landing zone.',
   tee:{x:210,y:726}, cup:{x:205,y:414},
   pads:[ R(148,652,124,116,16), PA([{x:210,y:658},{x:210,y:548}],46), C(205,428,112) ],
   open:[ C(205,428,130) ],
+  boosts:[ {x:210,y:606,r:21,dir:{x:0,y:-1},power:455} ],
+  movers:[ {kind:'crab',a:{x:158,y:474},b:{x:250,y:474},r:14,period:2600} ],
   sand:[ C(258,502,28) ],
   decor:[ {t:'rock',x:66,y:470,r:20},{t:'rock',x:352,y:388,r:22},{t:'rock',x:92,y:614,r:15},
           {t:'coral',x:336,y:566},{t:'coral',x:74,y:300},{t:'palm',x:116,y:744,s:.7} ]
 },
 {
-  name:'Blowhole Launch', par:3, pal:'reef',
-  blurb:'The fairway simply stops. Ride the blowhole and fly the channel — there is no other way across.',
+  name:'Blowhole Launch', par:3, pal:'reef', styleMult:2,
+  blurb:'The fairway simply stops. Ride the blowhole and fly the channel — there is no other way across. Spinning urchins guard the landing.',
   tee:{x:210,y:748}, cup:{x:210,y:214},
   pads:[ PA([{x:210,y:758},{x:210,y:640}],122),
          PA([{x:210,y:430},{x:210,y:340},{x:172,y:270},{x:210,y:196}],[122,118,110,112]) ],
   ramps:[ {x:210,y:610,r:33,dir:{x:0,y:-1},power:520,air:418,kind:'geyser'} ],
+  boosts:[ {x:196,y:284,r:22,dir:{x:.24,y:-.97},power:350} ],
+  movers:[ {kind:'urchin',a:{x:172,y:374},b:{x:248,y:374},r:13,period:2300} ],
   sand:[ C(194,244,30) ],
   decor:[ {t:'geyser',x:210,y:610},{t:'rock',x:78,y:552,r:19},{t:'rock',x:342,y:534,r:17},
           {t:'coral',x:92,y:400},{t:'coral',x:330,y:400},{t:'torch',x:276,y:296} ]
 },
 {
-  name:'The Road Hole', par:4, pal:'links',
-  blurb:'St Andrews\' 17th. The old railway wall runs the whole right side, and that little pot bunker in front of the cup has ruined Open championships.',
+  name:'The Road Hole', par:4, pal:'links', styleMult:1.5,
+  blurb:'St Andrews\' 17th. The old railway wall runs the whole right side, and that little pot bunker in front of the cup has ruined Open championships. A boost pad on the turn fires you around the wall.',
   tee:{x:120,y:750}, cup:{x:302,y:210},
   pads:[ PA([{x:120,y:760},{x:130,y:430},{x:168,y:322},{x:252,y:266},{x:304,y:200}],[150,150,116,112,110]) ],
   cut:[ R(172,446,20,286,5) ],
+  boosts:[ {x:138,y:398,r:26,dir:{x:.65,y:-.76},power:560} ],
+  movers:[ {kind:'crab',a:{x:88,y:560},b:{x:150,y:560},r:14,period:2600} ],
   sand:[ C(266,246,29) ],
   decor:[ {t:'wall',x:182,y:589,w:20,h:286},{t:'torch',x:216,y:700},{t:'torch',x:216,y:470},
           {t:'rock',x:360,y:430,r:18},{t:'palm',x:52,y:262,s:.85},{t:'shell',x:56,y:300} ]
 },
 {
-  name:'Devil\'s Cauldron', par:3, pal:'volcan',
-  blurb:'Banff Springs\' 4th. Everything funnels into the bowl — but a glacial lake sits between you and it. Ramp it, or crawl around the edge.',
+  name:'Devil\'s Cauldron', par:3, pal:'volcan', styleMult:2,
+  blurb:'Banff Springs\' 4th. Three ways in: ramp the lake down the middle, time the spinner on the left, or take the boost run up the right. Your call.',
   tee:{x:210,y:736}, cup:{x:205,y:382},
   pads:[ R(148,690,124,96,14), PA([{x:210,y:696},{x:210,y:642}],58), R(60,290,300,360,22) ],
   water:[ C(205,556,86) ],
   slopes:[ {s:C(205,382,124), radial:{x:205,y:382,a:270}} ],
   ramps:[ {x:210,y:666,r:29,dir:{x:.12,y:-.993},power:545,air:428,kind:'wood'} ],
+  boosts:[ {x:330,y:498,r:24,dir:{x:-.10,y:-.995},power:500} ],
+  rotors:[ {kind:'windmill',x:90,y:470,len:28,speed:1.4,arms:2} ],
   sand:[ C(96,360,32), C(316,360,32) ],
   decor:[ {t:'rock',x:78,y:252,r:20},{t:'rock',x:342,y:252,r:18},{t:'torch',x:36,y:614},
           {t:'torch',x:384,y:614},{t:'palm',x:390,y:470,s:.8} ]
 },
 {
-  name:'Shipwreck Bend', par:4, pal:'tropic',
-  blurb:'A rotting plank bridge with no rails, then a wrecked schooner whose boom still swings across the fairway.',
+  name:'Shipwreck Bend', par:4, pal:'tropic', styleMult:2,
+  blurb:'A rotting plank bridge with no rails and a boost pad halfway across, then a wrecked schooner whose boom still swings over the only gap.',
   tee:{x:110,y:750}, cup:{x:234,y:196},
   pads:[ PA([{x:110,y:760},{x:110,y:566}],120),
          PA([{x:110,y:566},{x:212,y:472}],72),
@@ -508,36 +548,40 @@ const HOLES = [
   cut:[ PG([{x:332,y:332},{x:324,y:345},{x:302,y:353},{x:279,y:352},
              {x:268,y:340},{x:276,y:327},{x:298,y:319},{x:321,y:320}]) ],
   rotors:[ {kind:'boom',x:296,y:332,len:58,speed:1.35,arms:1} ],
+  boosts:[ {x:160,y:519,r:24,dir:{x:.74,y:-.68},power:540} ],
   sand:[ C(300,252,28) ],
   decor:[ {t:'planks',a:{x:110,y:566},b:{x:212,y:472},w:72,onCourse:1},
           {t:'ship',x:300,y:336,s:.66,onCourse:1},{t:'rock',x:246,y:606,r:22},{t:'rock',x:52,y:420,r:18},
           {t:'coral',x:176,y:626},{t:'torch',x:192,y:690},{t:'palm',x:380,y:566,s:.9} ]
 },
 {
-  name:'Tidal Rush', par:4, pal:'reef',
-  blurb:'Two tidal channels flood and drain on their own clock. Read the water, or swim.',
+  name:'Tidal Rush', par:4, pal:'reef', styleMult:2,
+  blurb:'Two tidal channels flood and drain on their own clock. Read the water, hit the boost pad between them, and sprint the second gap.',
   tee:{x:210,y:752}, cup:{x:210,y:180},
   pads:[ PA([{x:210,y:762},{x:210,y:164}],140) ],
   tides:[ {s:R(140,556,140,72), period:3200, wet:.46, phase:0},
           {s:R(140,326,140,72), period:3200, wet:.46, phase:1600} ],
-  movers:[ {kind:'crab',a:{x:164,y:462},b:{x:256,y:462},r:15,period:2200} ],
+  boosts:[ {x:210,y:504,r:26,dir:{x:0,y:-1},power:600} ],
+  movers:[ {kind:'crab',a:{x:164,y:448},b:{x:256,y:448},r:15,period:2200} ],
   sand:[ C(176,244,32) ],
   decor:[ {t:'torch',x:114,y:680},{t:'torch',x:306,y:680},{t:'torch',x:114,y:212},{t:'torch',x:306,y:212},
           {t:'palm',x:62,y:520,s:.95},{t:'palm',x:358,y:600,s:.85},{t:'coral',x:366,y:300},{t:'shell',x:328,y:596} ]
 },
 {
-  name:'Volcano Vortex', par:4, pal:'volcan',
-  blurb:'Spiral up the cinder cone with a live lava vent at the centre. There is a lava tube shortcut, if you dare find it.',
+  name:'Volcano Vortex', par:4, pal:'volcan', styleMult:2.5,
+  blurb:'Spiral up the cinder cone around a live lava vent. A boost pad flings you up the ramp of the spiral, a swinging spar guards the outer lap, and a lava tube shortcut skips half the climb — if you dare find it.',
   tee:{x:210,y:762}, cup:{x:141,y:471},
   pads:[ PA([{x:210,y:772},{x:210,y:606}],120),
          PA(spiralPts(210,420,Math.PI/2,1.15,190,86,46),68) ],
   lava:[ C(210,420,38) ],
   pipes:[ {a:{x:79,y:331},b:{x:224,y:521},r:15} ],
+  boosts:[ {x:226,y:278,r:22,dir:{x:.99,y:.11},power:530} ],
+  rotors:[ {kind:'boom',x:56,y:502,len:30,speed:1.6,arms:1} ],
   decor:[ {t:'volcano',x:210,y:420,r:46,onCourse:1},{t:'rock',x:60,y:706,r:20},{t:'rock',x:360,y:706,r:18},
           {t:'torch',x:118,y:690},{t:'torch',x:302,y:690} ]
 },
 {
-  name:'Shark Loop', par:5, pal:'reef',
+  name:'Shark Loop', par:5, pal:'reef', styleMult:2.5,
   blurb:'A reef wall blocks the short way round, so take the long lap of the shark pen. The cup sits on an island ringed by a shark moat — the launch pad at the top is the only way over.',
   tee:{x:210,y:764}, cup:{x:210,y:430},
   pads:[ PA([{x:210,y:774},{x:210,y:574}],118),
@@ -546,6 +590,7 @@ const HOLES = [
          C(210,430,46) ],
   water:[ PA(arcPts(210,430,79,0,TAU,40),66) ],
   cut:[ PG([{x:131,y:510},{x:148,y:524},{x:101,y:583},{x:83,y:569}]) ],
+  boosts:[ {x:360,y:430,r:24,dir:{x:0,y:-1},power:520} ],
   ramps:[ {x:210,y:280,r:26,dir:{x:0,y:1},power:326,air:405,kind:'wood'} ],
   movers:[ {kind:'shark',a:{x:350,y:392},b:{x:350,y:470},r:16,period:1900},
            {kind:'shark',a:{x:70,y:470},b:{x:70,y:392},r:16,period:2100} ],
@@ -554,13 +599,15 @@ const HOLES = [
           {t:'torch',x:126,y:700},{t:'torch',x:294,y:700} ]
 },
 {
-  name:'Lighthouse Point', par:5, pal:'sunset',
-  blurb:'Pebble Beach\'s 18th, beach-golf edition. The ocean cuts a lagoon down the entire left side, a windmill guards the neck, and the last stretch climbs uphill to the light.',
+  name:'Lighthouse Point', par:5, pal:'sunset', styleMult:2.5,
+  blurb:'Pebble Beach\'s 18th, beach-golf edition. The ocean cuts a lagoon down the entire left side, a windmill guards the neck, and the last stretch climbs uphill — so there is a boost pad at the bottom of the hill to fling you up to the light.',
   tee:{x:300,y:762}, cup:{x:172,y:170},
   pads:[ PA([{x:300,y:772},{x:300,y:558},{x:270,y:430},{x:200,y:330},{x:150,y:242},{x:172,y:158}],
              [120,118,112,108,104,104]) ],
   water:[ PA([{x:238,y:664},{x:254,y:576},{x:230,y:430},{x:162,y:330},{x:118,y:252}],36) ],
   rotors:[ {kind:'windmill',x:280,y:452,len:34,speed:1.6,arms:2} ],
+  boosts:[ {x:178,y:222,r:23,dir:{x:-.12,y:-.993},power:432} ],
+  movers:[ {kind:'crab',a:{x:266,y:664},b:{x:338,y:664},r:14,period:2500} ],
   slopes:[ {s:R(114,150,120,108), ax:0, ay:245} ],
   sand:[ C(200,252,28) ],
   decor:[ {t:'lighthouse',x:302,y:142},{t:'rock',x:82,y:700,r:22},{t:'rock',x:372,y:300,r:20},
@@ -838,6 +885,24 @@ function bakeArt(h){
     g.restore();
   });
 
+  // booster pads
+  h.boosts.forEach(bs=>{
+    const ang=Math.atan2(bs.dir.y,bs.dir.x);
+    g.save(); g.translate(bs.x,bs.y); g.rotate(ang);
+    g.fillStyle='rgba(0,0,0,.38)';
+    g.beginPath(); g.ellipse(0,3,bs.r+3,bs.r*.86+3,0,0,TAU); g.fill();
+    const pg=g.createLinearGradient(0,-bs.r,0,bs.r);
+    pg.addColorStop(0,'#3f5a66'); pg.addColorStop(.5,'#22343d'); pg.addColorStop(1,'#16242b');
+    g.fillStyle=pg;
+    g.beginPath();
+    if(g.roundRect) g.roundRect(-bs.r,-bs.r*.86,bs.r*2,bs.r*1.72,7); else g.rect(-bs.r,-bs.r*.86,bs.r*2,bs.r*1.72);
+    g.fill();
+    g.strokeStyle='rgba(190,240,255,.55)'; g.lineWidth=2.2; g.stroke();
+    g.strokeStyle='rgba(255,255,255,.16)'; g.lineWidth=1.2;
+    for(let i=-2;i<=2;i++){ g.beginPath(); g.moveTo(-bs.r+3,i*bs.r*.3); g.lineTo(bs.r-3,i*bs.r*.3); g.stroke(); }
+    g.restore();
+  });
+
   // pipe mouths — entry is a dark intake, exit is a raised vent so it can never
   // be mistaken for the cup
   h.pipes.forEach(pp=>{
@@ -917,8 +982,9 @@ function shapeBounds(s){
 function compileHole(h){
   if(h._ready) return;
   h.pal = typeof h.pal==='string' ? PALETTE[h.pal] : (h.pal||PALETTE.tropic);
-  ['cut','open','sand','water','lava','slopes','ramps','pipes','movers','rotors','tides','decor']
+  ['cut','open','sand','water','lava','slopes','ramps','pipes','boosts','movers','rotors','tides','decor']
     .forEach(k=> h[k]=h[k]||[]);
+  h.styleMult = h.styleMult || 1;
   h.floorSDF = signedDF(rasterMask(h.pads,h.cut), BASE_W, BASE_H);
   h.barrierSDF = (h.open.length||h.openAll)
     ? signedDF(rasterMask(h.openAll?[R(-4,-4,BASE_W+8,BASE_H+8)]:h.pads, h.cut, h.openAll?null:h.open), BASE_W, BASE_H)
@@ -976,6 +1042,7 @@ const sfx={
   splash:()=>{ noise(.42,.24,3000,180,0,400); osc(300,.3,'sine',.11,120); },
   lava:()=>{ noise(.5,.24,900,60,0,120); osc(120,.42,'sawtooth',.11,44); },
   launch:()=>{ noise(.3,.17,2600,300,0,5200); osc(180,.34,'sine',.15,760); },
+  boost:()=>{ noise(.22,.15,4200,700,0,1400); osc(420,.2,'square',.11,1180); osc(210,.24,'sine',.09,620); },
   land:()=>{ noise(.11,.13,900,120); osc(110,.1,'triangle',.08,60); },
   pipe:()=>{ osc(680,.2,'sine',.12,180); noise(.2,.08,1600,400); },
   kick:()=>{ osc(340,.08,'square',.11,210); noise(.05,.07,2000,600); },
@@ -1033,15 +1100,25 @@ let hazKind='water', hazT=0;
 let sinkT=0, sinkFrom={x:0,y:0};
 let shake=0, flash=0, hitStop=0;
 let trail=[];
+/* style scoring: what happened on the shot that finished the hole */
+let shotFlags={bounces:0,boost:false,ramp:false,pipe:false,mover:false,startDist:0,airborne:false};
+let holeStyle=0, holeStyleList=[], holeHazards=0, roundStyle=0;
+function resetShotFlags(){
+  shotFlags={bounces:0,boost:false,ramp:false,pipe:false,mover:false,
+             startDist:hole?dist(ball.x,ball.y,hole.cup.x,hole.cup.y):0,airborne:false};
+}
 let now=0, aimShown=false;
 const gN={x:0,y:0};
 
 const SAVE='ebg_v2';
-let save={best:new Array(HOLES.length).fill(null), bestTotal:null, seenHow:false};
+let save={best:new Array(HOLES.length).fill(null), styleBest:new Array(HOLES.length).fill(null),
+          bestTotal:null, bestStyle:null, seenHow:false};
 try{
   const s=JSON.parse(localStorage.getItem(SAVE));
   if(s&&Array.isArray(s.best)&&s.best.length===HOLES.length) save=Object.assign(save,s);
 }catch(e){}
+if(!Array.isArray(save.styleBest)||save.styleBest.length!==HOLES.length)
+  save.styleBest=new Array(HOLES.length).fill(null);
 function persist(){ try{ localStorage.setItem(SAVE,JSON.stringify(save)); }catch(e){} }
 
 /* ---------------- ball dimples (rotate in 3D as it rolls) ---------------- */
@@ -1085,6 +1162,8 @@ function loadHole(i,keepScore){
   hole.pipes.forEach(p=>p._cool=0);
   hole.movers.forEach(m=>{ m._x=m.a.x; m._y=m.a.y; m._kick=0; });
   hole.rotors.forEach(r=>{ r._a=0; r._kick=0; });
+  hole.boosts.forEach(b=>b._cool=0);
+  holeStyle=0; holeStyleList=[]; holeHazards=0; resetShotFlags();
   mode='intro'; showIntro(); syncHUD();
 }
 function frictionStep(fr,dt){
@@ -1109,6 +1188,7 @@ function collideWalls(){
       ball.vx=gN.x*nn+tx*nt; ball.vy=gN.y*nn+ty*nt;
       const imp=-vn;
       if(imp>55){
+        shotFlags.bounces++;
         sfx.wall(imp);
         emit(Math.min(7,2+(imp/160)|0),ball.x-gN.x*BALL_R,ball.y-gN.y*BALL_R,
           {ang:Math.atan2(gN.y,gN.x),spread:1.5,vmin:30,vmax:40+imp*.3,life:260,sz:2.2,col:['#fff6d8','#ffe6a8']});
@@ -1128,7 +1208,7 @@ function collideMovers(dtSub){
       if(vn<0){ ball.vx-=(1+.72)*vn*nx; ball.vy-=(1+.72)*vn*ny; }
       if(now-m._kick>200){
         ball.vx+=(m._vx||0)*.5; ball.vy+=(m._vy||0)*.5;
-        m._kick=now; sfx.kick(); shake=Math.max(shake,3.4);
+        m._kick=now; shotFlags.mover=true; sfx.kick(); shake=Math.max(shake,3.4);
         emit(6,ball.x,ball.y,{vmin:40,vmax:130,life:300,sz:2.4,col:['#fff','#ffd9a0']});
         if(navigator.vibrate) try{navigator.vibrate(14);}catch(e){}
       }
@@ -1156,7 +1236,7 @@ function collideRotors(){
         if(now-r._kick>190){
           const tanS=r.speed*r.len*cp.t;
           ball.vx+=-Math.sin(a)*tanS*.85; ball.vy+=Math.cos(a)*tanS*.85;
-          r._kick=now; sfx.kick(); shake=Math.max(shake,4.5); hitStop=Math.max(hitStop,45);
+          r._kick=now; shotFlags.mover=true; sfx.kick(); shake=Math.max(shake,4.5); hitStop=Math.max(hitStop,45);
           emit(9,ball.x,ball.y,{vmin:60,vmax:200,life:340,sz:2.6,col:['#fff','#ffe0a0','#ffd166']});
           if(navigator.vibrate) try{navigator.vibrate(18);}catch(e){}
         }
@@ -1188,7 +1268,7 @@ function launchRamp(rp){
   const l=Math.hypot(rp.dir.x,rp.dir.y)||1;
   ball.vx=rp.dir.x/l*rp.power; ball.vy=rp.dir.y/l*rp.power;
   ball.air=rp.air; ball.airMax=rp.air;
-  rp._cool=now;
+  rp._cool=now; shotFlags.ramp=true; shotFlags.airborne=true;
   sfx.launch(); shake=Math.max(shake,6);
   emit(24,rp.x,rp.y,{vmin:70,vmax:250,life:520,sz:3.4,g:200,
     col: rp.kind==='geyser'?['#dff8ff','#a8e8ff','#fff']:['#e8d0a0','#c9a877','#fff']});
@@ -1236,7 +1316,7 @@ function resolveDrop(){
 function hazard(kind){
   mode='hazard'; hazKind=kind; hazT=0;
   ball.vx=0; ball.vy=0; ball.air=0;
-  strokes[holeIdx]++; syncHUD();
+  strokes[holeIdx]++; holeHazards++; syncHUD();
   shake=Math.max(shake,5);
   if(kind==='lava'){
     sfx.lava(); flash=Math.max(flash,.35);
@@ -1303,6 +1383,23 @@ function stepPhysics(dtMs){
     collideWalls();
     collideMovers(sub);
     collideRotors();
+    // booster pads: redirect and slam the ball up to the pad's speed
+    for(const bs of h.boosts){
+      if(now-(bs._cool||0)<650) continue;
+      if(dist(ball.x,ball.y,bs.x,bs.y)>=bs.r) continue;
+      const sp=Math.hypot(ball.vx,ball.vy);
+      if(sp<26) continue;
+      const l=Math.hypot(bs.dir.x,bs.dir.y)||1;
+      const target=Math.max(bs.power, sp*.92);
+      ball.vx=bs.dir.x/l*target; ball.vy=bs.dir.y/l*target;
+      bs._cool=now; shotFlags.boost=true;
+      sfx.boost(); shake=Math.max(shake,5); hitStop=Math.max(hitStop,30);
+      emit(20,bs.x,bs.y,{ang:Math.atan2(bs.dir.y,bs.dir.x)+Math.PI,spread:1.1,vmin:70,vmax:230,
+        life:460,sz:3,drag:1.6,col:['#bff3ff','#7fd4ee','#fff'],glow:1});
+      toast('BOOST!');
+      if(navigator.vibrate) try{navigator.vibrate(18);}catch(e){}
+      break;
+    }
     // ramps
     for(const rp of h.ramps){
       if(now-(rp._cool||0)<900) continue;
@@ -1314,7 +1411,7 @@ function stepPhysics(dtMs){
       if(now-(pp._cool||0)<800) continue;
       if(dist(ball.x,ball.y,pp.a.x,pp.a.y)<pp.r*.95){
         emit(14,pp.a.x,pp.a.y,{vmin:30,vmax:110,life:380,sz:2.6,col:['#8fe0ff','#fff']});
-        ball.x=pp.b.x; ball.y=pp.b.y; pp._cool=now;
+        ball.x=pp.b.x; ball.y=pp.b.y; pp._cool=now; shotFlags.pipe=true;
         const sp=Math.hypot(ball.vx,ball.vy);
         ball.vx*=.9; ball.vy*=.9;
         sfx.pipe(); toast('SHORTCUT!');
@@ -1857,6 +1954,32 @@ function drawShark(x,y,r,t,face){
   ctx.beginPath(); ctx.moveTo(x-face*r*1.5,y+r*.6);
   ctx.lineTo(x-face*r*2.5,y+r*.1); ctx.lineTo(x-face*r*2.4,y+r*1.2); ctx.closePath(); ctx.fill();
 }
+function drawUrchin(x,y,r,t){
+  ctx.fillStyle='rgba(0,0,0,.32)';
+  ctx.beginPath(); ctx.ellipse(x+2,y+r*.7,r*1.05,r*.42,0,0,TAU); ctx.fill();
+  const spin=t*1.5;
+  ctx.strokeStyle='#3b2a52'; ctx.lineWidth=2.4; ctx.lineCap='round';
+  for(let i=0;i<14;i++){
+    const a=spin+i*TAU/14;
+    ctx.beginPath();
+    ctx.moveTo(x+Math.cos(a)*r*.72,y+Math.sin(a)*r*.72);
+    ctx.lineTo(x+Math.cos(a)*(r*1.42),y+Math.sin(a)*(r*1.42));
+    ctx.stroke();
+  }
+  ctx.strokeStyle='#6b4d8f'; ctx.lineWidth=1.2;
+  for(let i=0;i<14;i++){
+    const a=spin+i*TAU/14;
+    ctx.beginPath();
+    ctx.moveTo(x+Math.cos(a)*r*.72,y+Math.sin(a)*r*.72);
+    ctx.lineTo(x+Math.cos(a)*(r*1.30),y+Math.sin(a)*(r*1.30));
+    ctx.stroke();
+  }
+  const g=ctx.createRadialGradient(x-r*.32,y-r*.36,r*.1,x,y,r);
+  g.addColorStop(0,'#7d5aa8'); g.addColorStop(.6,'#4a3170'); g.addColorStop(1,'#2a1c42');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r*.86,0,TAU); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.30)';
+  ctx.beginPath(); ctx.ellipse(x-r*.28,y-r*.3,r*.24,r*.16,-.6,0,TAU); ctx.fill();
+}
 function drawRotors(t){
   for(const r of hole.rotors){
     const arms=r.arms||1;
@@ -1918,6 +2041,34 @@ function drawMovers(t){
   for(const m of hole.movers){
     if(m.kind==='crab') drawCrab(m._x,m._y,m.r,t,m._face||1);
     else if(m.kind==='shark') drawShark(m._x,m._y,m.r,t,m._face||1);
+    else if(m.kind==='urchin') drawUrchin(m._x,m._y,m.r,t);
+  }
+}
+function drawBoosts(t){
+  for(const bs of hole.boosts){
+    const ang=Math.atan2(bs.dir.y,bs.dir.x);
+    const ready = now-(bs._cool||0) > 650;
+    ctx.save(); ctx.translate(bs.x,bs.y); ctx.rotate(ang);
+    const pulse=(Math.sin(t*5)+1)/2;
+    const g=ctx.createRadialGradient(0,0,1,0,0,bs.r*1.5);
+    g.addColorStop(0,'rgba(150,235,255,'+((ready?.30:.10)+pulse*.14).toFixed(3)+')');
+    g.addColorStop(1,'rgba(120,215,255,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,bs.r*1.5,0,TAU); ctx.fill();
+    // chevrons scrolling toward the launch direction
+    for(let i=0;i<3;i++){
+      const p=((t*1.5+i/3)%1);
+      const x=lerp(-bs.r*.72,bs.r*.78,p);
+      const a=(ready?.85:.3)*Math.sin(p*Math.PI);
+      ctx.strokeStyle='rgba(232,252,255,'+a.toFixed(3)+')';
+      ctx.lineWidth=3.2; ctx.lineCap='round'; ctx.lineJoin='round';
+      ctx.beginPath();
+      ctx.moveTo(x-5,-bs.r*.48); ctx.lineTo(x+5,0); ctx.lineTo(x-5,bs.r*.48);
+      ctx.stroke();
+    }
+    ctx.restore();
+    if(ready&&Math.random()<.12)
+      emit(1,bs.x+(Math.random()-.5)*bs.r,bs.y+(Math.random()-.5)*bs.r*.7,
+        {ang,spread:.5,vmin:30,vmax:80,life:420,sz:1.8,drag:2,col:['#cdf3ff','#fff']});
   }
 }
 function drawPipes(t){
@@ -2082,6 +2233,7 @@ function render(t){
     drawWaterAnim(t);
     drawLavaAnim(t);
     drawTides(t);
+    drawBoosts(t);
     drawPipes(t);
     drawDecor(t);
     drawMovers(t);
@@ -2129,8 +2281,9 @@ function shoot(e){
   if(raw<12) return;
   const cl=Math.min(raw,MAX_PULL), pw=Math.pow(cl/MAX_PULL,POW_CURVE);
   const nx=dx/raw, ny=dy/raw;
-  ball.vx=nx*pw*MAX_SPEED; ball.vy=ny*pw*MAX_SPEED;
   shotStart={x:ball.x,y:ball.y}; safePos={x:ball.x,y:ball.y};
+  resetShotFlags();
+  ball.vx=nx*pw*MAX_SPEED; ball.vy=ny*pw*MAX_SPEED;
   strokes[holeIdx]++; syncHUD();
   mode='roll'; trail.length=0;
   sfx.putt(pw);
@@ -2165,6 +2318,7 @@ function syncHUD(){
   $('cPar').textContent='Par '+hole.par;
   $('cStr').innerHTML='Shots <b>'+strokes[holeIdx]+'</b>';
   $('cTot').textContent='Total '+rel(playedTotalRel());
+  $('cStyle').textContent='⭐ '+roundStyle.toLocaleString();
 }
 let tipT=0;
 function showTip(txt,ms){ $('tipTxt').textContent=txt; $('tip').classList.remove('hidden'); tipT=ms||0; }
@@ -2178,6 +2332,33 @@ function toast(txt){
   toastT=850;
 }
 
+/** Style points: rewards HOW you holed it, not just how few shots it took.
+ *  Elaborate holes carry a multiplier so creative layouts pay out more. */
+function awardStyle(){
+  holeStyle=0; holeStyleList=[];
+  const s=strokes[holeIdx], par=hole.par, mult=hole.styleMult||1;
+  const add=(pts,label)=>{
+    const p=Math.round(pts*mult);
+    holeStyle+=p; holeStyleList.push({label,pts:p});
+  };
+  if(s===1) add(500,'Hole in one');
+  else if(s<par) add(200*(par-s),(par-s)+' under par');
+  else if(s===par) add(100,'Par');
+  if(shotFlags.bounces>=3) add(300,'Trick shot · '+shotFlags.bounces+' banks');
+  else if(shotFlags.bounces>=1) add(150,'Bank shot');
+  if(shotFlags.startDist>340) add(250,'Long bomb');
+  if(shotFlags.airborne) add(300,'Air mail');
+  if(shotFlags.boost) add(200,'Turbo finish');
+  if(shotFlags.pipe) add(200,'Tunnel rat');
+  if(shotFlags.mover) add(150,'Off the wildlife');
+  if(holeHazards===0) add(100,'Clean sheet');
+  if(holeStyle===0) add(25,'Holed out');
+  if(mult>1) holeStyleList.push({label:'Hole bonus ×'+mult,pts:null});
+  roundStyle+=holeStyle;
+  if(save.styleBest[holeIdx]==null||holeStyle>save.styleBest[holeIdx]){
+    save.styleBest[holeIdx]=holeStyle; persist();
+  }
+}
 function stars(s,par){ const d=s-par; return d<=-1?3:(d===0?2:(d<=2?1:0)); }
 function starStr(n){ return '★'.repeat(n)+'☆'.repeat(3-n); }
 function verdict(s,par){
@@ -2198,6 +2379,24 @@ function confetti(big){
       {ang:-Math.PI/2,spread:Math.PI*1.1,vmin:150,vmax:big?430:300,life:1500,sz:4.6,g:420,col:cols,kind:'rect'});
 }
 
+/** Icon list of what this hole throws at you — shown on the tee screen. */
+function holeFeatures(h){
+  const f=[];
+  if(h.boosts.length) f.push('⚡ Boost pad');
+  if(h.ramps.length)  f.push('🚀 Launch ramp');
+  if(h.pipes.length)  f.push('🌀 Shortcut tube');
+  if(h.rotors.length) f.push('🌪️ Spinner');
+  if(h.movers.length) f.push(h.movers.some(m=>m.kind==='shark')?'🦈 Sharks':
+                             h.movers.some(m=>m.kind==='urchin')?'🪸 Urchins':'🦀 Crabs');
+  if(h.tides.length)  f.push('🌊 Tides');
+  if(h.lava.length)   f.push('🌋 Lava');
+  else if(h.water.length) f.push('💧 Water');
+  if(h.slopes.length) f.push('⛰️ Slopes');
+  if(h.cut.length)    f.push('🧱 Blockers');
+  if(h.openAll||h.open.length) f.push('🏝️ No rails');
+  if(h.sand.length)   f.push('🏖️ Bunkers');
+  return f;
+}
 function showIntro(){
   $('iNum').textContent='HOLE '+(holeIdx+1)+' OF '+HOLES.length;
   $('iName').textContent=hole.name;
@@ -2205,6 +2404,8 @@ function showIntro(){
   $('iPar').textContent='Par '+hole.par;
   const b=save.best[holeIdx];
   $('iBest').textContent= b!=null? 'Best '+b : 'Best —';
+  $('iMult').textContent = hole.styleMult>1 ? '⭐ Style ×'+hole.styleMult : '⭐ Style ×1';
+  $('iFeat').innerHTML = holeFeatures(hole).map(f=>'<span class="feat">'+f+'</span>').join('');
   showOv('ovIntro');
 }
 function tee(){
@@ -2216,10 +2417,15 @@ function tee(){
 }
 function finishHole(){
   played[holeIdx]=true;
+  awardStyle();
   const s=strokes[holeIdx], par=hole.par, v=verdict(s,par), st=stars(s,par);
   $('dEmo').textContent=v.e; $('dTitle').textContent=v.t;
   $('dSub').textContent=s+' shot'+(s===1?'':'s')+' · par '+par;
   $('dStars').textContent=starStr(st);
+  $('dStyleTot').textContent='+'+holeStyle.toLocaleString();
+  $('dStyleList').innerHTML = holeStyleList.map(e=>
+    '<div class="srow"><span>'+e.label+'</span><span>'+(e.pts==null?'':'+'+e.pts)+'</span></div>').join('');
+  syncHUD();
   const prev=save.best[holeIdx];
   const isNew= prev==null||s<prev;
   if(isNew){ save.best[holeIdx]=s; persist(); }
@@ -2238,6 +2444,10 @@ function showCard(){
     html+='<tr><td>'+(i+1)+'</td><td class="nm">'+h.name+'</td><td>'+h.par+'</td><td><b>'+s+'</b></td>'+
           '<td class="'+(d<0?'u':(d>0?'o':''))+'">'+rel(d)+'</td></tr>';
   });
+  $('cStyleTot').textContent='⭐ '+roundStyle.toLocaleString()+' style points';
+  const newStyle = save.bestStyle==null||roundStyle>save.bestStyle;
+  if(newStyle){ save.bestStyle=roundStyle; persist(); }
+  $('cStyleBest').textContent = newStyle ? '🌟 New style record!' : 'Style record: '+(save.bestStyle||0).toLocaleString();
   $('cardTbl').innerHTML=html;
   const d=tot-par;
   $('cTotal').textContent='Total '+tot+' ('+rel(d)+')';
@@ -2276,7 +2486,11 @@ function showPick(){
   mode='pick'; showOv('ovPick');
 }
 function startRound(i,resetAll){
-  if(resetAll){ strokes=new Array(HOLES.length).fill(0); played=new Array(HOLES.length).fill(false); }
+  if(resetAll){
+    strokes=new Array(HOLES.length).fill(0);
+    played=new Array(HOLES.length).fill(false);
+    roundStyle=0;
+  }
   $('loading').classList.remove('hidden');
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     loadHole(i,false);

@@ -11,6 +11,11 @@ Drag backwards from the ball like a slingshot and let go. The dotted line
 previews the bounce; a full drag is **OVERDRIVE**, hard enough to cross an
 entire hole.
 
+Every hole has obstacles to beat and a boost pad, ramp or shortcut tube to
+exploit. Beyond the scorecard there are **style points** — bank shots, trick
+shots, long bombs, air mail off a ramp, turbo finishes, tunnel runs and clean
+sheets all pay out, and the more elaborate holes carry a multiplier up to ×2.5.
+
 | # | Hole | Par | Modelled on |
 |---|------|-----|-------------|
 | 1 | Sandpiper Straight | 2 | a gentle links opener |
@@ -26,7 +31,7 @@ entire hole.
 | 11 | Shark Loop | 5 | classic putt-putt loop |
 | 12 | Lighthouse Point | 5 | Pebble Beach, 18th |
 
-Total par **42**.
+Total par **42**. Style records are tracked per hole and per round.
 
 Single self-contained HTML file — no install, no network needed once loaded.
 Best scores are saved on your own device.
