@@ -17,15 +17,18 @@ shots, trick shots, long bombs, air mail off a ramp, turbo finishes, tunnel
 runs and clean sheets — so you can see what scores. Elaborate holes carry a
 multiplier up to ×2.5.
 
-Highlights: hole 3 has fully bouncy bumper rails, hole 6 forks with a timed
-signal flap (right side = the beach green, wrong side = the bay), hole 10 is a
-two-level volcano with a lava moat between the tiers, and hole 11 offers a
-short dangerous shark bridge or a long safe lap. Max-power shots set the ball
-on fire.
+Highlights: hole 1 climbs a hill onto an upper level, where a wooden slide
+flings you off a jump into a **skee-ball board** — 150, 300 or JACKPOT 600,
+depending how fast you took the slide, and the better the pocket the closer it
+spits you out to the cup. Hole 3 has fully bouncy bumper rails, hole 6 forks
+behind a timed signal flap (right side = the beach green, wrong side = the bay),
+hole 10 is a two-level volcano with a lava moat between the tiers, and hole 11
+offers a short dangerous shark bridge or a long safe lap. Max-power shots set
+the ball on fire.
 
 | # | Hole | Par | Modelled on |
 |---|------|-----|-------------|
-| 1 | Sandpiper Straight | 2 | a gentle links opener |
+| 1 | Sandpiper Slide | 3 | two levels + a skee-ball finish |
 | 2 | The Postage Stamp | 2 | Royal Troon, 8th |
 | 3 | Rubber Reef Bend | 3 | a dogleg — with bouncy bumper rails |
 | 4 | Island Green | 3 | TPC Sawgrass, 17th |
@@ -38,7 +41,7 @@ on fire.
 | 11 | Shark Loop | 5 | classic putt-putt loop |
 | 12 | Lighthouse Point | 5 | Pebble Beach, 18th |
 
-Total par **42**. Style records are tracked per hole and per round.
+Total par **43**. Style records are tracked per hole and per round.
 
 Single self-contained HTML file — no install, no network needed once loaded.
 Best scores are saved on your own device.

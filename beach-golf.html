@@ -481,15 +481,28 @@ const PALETTE = {
 
 const HOLES = [
 {
-  name:'Sandpiper Straight', par:2, pal:'links', styleMult:1,
-  blurb:'A gentle opener along the dunes. Ride the boost pad, dodge the crab, learn the roll.',
-  tee:{x:210,y:748}, cup:{x:210,y:198},
-  pads:[ PA([{x:210,y:756},{x:210,y:642},{x:176,y:544},{x:202,y:440},{x:210,y:336},{x:210,y:190}],120) ],
-  boosts:[ {x:201,y:440,r:26,dir:{x:.08,y:-.997},power:470} ],
-  movers:[ {kind:'crab',a:{x:172,y:262},b:{x:246,y:262},r:14,period:2700} ],
-  sand:[ C(166,520,36) ],
-  decor:[ {t:'torch',x:288,y:642},{t:'torch',x:288,y:336},{t:'palm',x:96,y:648,s:1},
-          {t:'palm',x:330,y:470,s:.85},{t:'rock',x:64,y:300,r:17},{t:'shell',x:286,y:560} ]
+  name:'Sandpiper Slide', par:3, pal:'links', styleMult:1.5,
+  blurb:'Two ways home. Power straight up the HILL on the left — crest the top and a wooden slide takes over, flings you off the jump and into the skee-ball pockets for big style points, dropping you a tap-in from the cup. Or play it safe the long way round on the right.',
+  tee:{x:210,y:752}, cup:{x:334,y:200},
+  pads:[ R(88,676,248,108,18),
+         PA([{x:150,y:706},{x:150,y:520},{x:162,y:448},{x:192,y:390},{x:208,y:350}],[80,80,60,50,44]),
+         PA([{x:210,y:308},{x:210,y:146}],92),
+         PA([{x:250,y:200},{x:334,y:200}],86),
+         PA([{x:298,y:700},{x:308,y:560},{x:308,y:400},{x:312,y:284},{x:330,y:216}],[74,74,74,74,84]) ],
+  slopes:[ {s:R(108,502,84,188), ax:0, ay:330},
+           {s:R(112,344,112,162), ax:.418*1250, ay:-.908*1250} ],
+  tiers:[ {s:PA([{x:158,y:470},{x:192,y:390},{x:208,y:348}],[62,50,44]), lift:10} ],
+  ramps:[ {x:206,y:354,r:20,dir:{x:.10,y:-.995},power:190,air:340,carry:.55,cap:560,kind:'wood'} ],
+  pockets:[ {x:210,y:258,r:19,pts:150,label:'150 pocket',out:{x:284,y:218}},
+            {x:210,y:212,r:17,pts:300,label:'300 pocket',out:{x:302,y:212}},
+            {x:210,y:166,r:15,pts:600,label:'JACKPOT pocket',jackpot:1,out:{x:320,y:204}} ],
+  boosts:[ {x:308,y:498,r:24,dir:{x:0,y:-1},power:470} ],
+  movers:[ {kind:'crab',a:{x:290,y:352},b:{x:328,y:352},r:14,period:2500} ],
+  sand:[ C(300,610,30) ],
+  decor:[ {t:'planks',a:{x:158,y:462},b:{x:206,y:352},w:46,onCourse:1},
+          {t:'torch',x:70,y:520},{t:'torch',x:70,y:640},
+          {t:'palm',x:52,y:300,s:.9},{t:'palm',x:388,y:470,s:.85},
+          {t:'rock',x:58,y:150,r:18},{t:'shell',x:394,y:640} ]
 },
 {
   name:'The Postage Stamp', par:2, pal:'links', styleMult:1.5,
@@ -940,7 +953,7 @@ function bakeArt(h){
     g.globalCompositeOperation='multiply';
     g.translate(lift*.55,lift*.9);
     g.filter='blur(3px)';
-    g.fillStyle='rgba(28,44,54,.55)'; g.fill(p);
+    g.fillStyle='rgba(28,44,54,.38)'; g.fill(p);
     g.filter='none';
     g.restore();
     g.save(); g.clip(p);
@@ -957,6 +970,39 @@ function bakeArt(h){
     g.save();
     g.strokeStyle='rgba(20,34,42,.42)'; g.lineWidth=2.4;
     g.translate(.8,1.6); g.stroke(p);
+    g.restore();
+  });
+
+  // skee-ball pockets: rimmed holes with their score printed above
+  h.pockets.forEach(pk=>{
+    g.save();
+    g.fillStyle='rgba(0,0,0,.40)';
+    g.beginPath(); g.ellipse(pk.x,pk.y+4,pk.r+7,pk.r+5,0,0,TAU); g.fill();
+    const rim=g.createRadialGradient(pk.x-pk.r*.4,pk.y-pk.r*.5,1,pk.x,pk.y,pk.r+7);
+    if(pk.jackpot){ rim.addColorStop(0,'#ffe9a0'); rim.addColorStop(.6,'#e8b13a'); rim.addColorStop(1,'#8d6410'); }
+    else { rim.addColorStop(0,'#cfd7dc'); rim.addColorStop(.6,'#93a1a8'); rim.addColorStop(1,'#4e5b62'); }
+    g.fillStyle=rim; g.beginPath(); g.arc(pk.x,pk.y,pk.r+7,0,TAU); g.fill();
+    for(let i=0;i<12;i++){
+      const a2=i*TAU/12;
+      g.strokeStyle='rgba(40,50,56,.35)'; g.lineWidth=1.3;
+      g.beginPath();
+      g.moveTo(pk.x+Math.cos(a2)*(pk.r+1),pk.y+Math.sin(a2)*(pk.r+1));
+      g.lineTo(pk.x+Math.cos(a2)*(pk.r+7),pk.y+Math.sin(a2)*(pk.r+7)); g.stroke();
+    }
+    const hole2=g.createRadialGradient(pk.x,pk.y-pk.r*.3,1,pk.x,pk.y,pk.r);
+    hole2.addColorStop(0,'#000'); hole2.addColorStop(.6,'#0a0e11'); hole2.addColorStop(1,'#26313a');
+    g.fillStyle=hole2; g.beginPath(); g.arc(pk.x,pk.y,pk.r,0,TAU); g.fill();
+    g.strokeStyle='rgba(255,255,255,.5)'; g.lineWidth=1.5;
+    g.beginPath(); g.arc(pk.x,pk.y,pk.r,Math.PI*.15,Math.PI*.85); g.stroke();
+    // score printed in the mouth of the pocket: stacked pockets would hide
+    // any plate drawn beside them
+    const txt=String(pk.pts);
+    g.font='900 '+(pk.jackpot?13:12)+'px -apple-system,system-ui,sans-serif';
+    g.textAlign='center'; g.textBaseline='middle';
+    g.lineWidth=3; g.strokeStyle='rgba(0,0,0,.85)';
+    g.strokeText(txt,pk.x,pk.y+.5);
+    g.fillStyle= pk.jackpot? '#ffdf7a' : '#e6eef2';
+    g.fillText(txt,pk.x,pk.y+.5);
     g.restore();
   });
 
@@ -1046,9 +1092,13 @@ function bakeArt(h){
 function shapeBounds(s){
   if(s.t==='c') return {x:s.x-s.r,y:s.y-s.r,w:s.r*2,h:s.r*2};
   if(s.t==='r') return {x:s.x,y:s.y,w:s.w,h:s.h};
-  if(s.t==='p'){
+  if(s.t==='p'||s.t==='a'){
     let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
     s.pts.forEach(p=>{x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y);});
+    if(s.t==='a'){                      // pad by the widest half-width
+      const hw=(Array.isArray(s.w)?Math.max.apply(null,s.w):s.w)/2;
+      x0-=hw; y0-=hw; x1+=hw; y1+=hw;
+    }
     return {x:x0,y:y0,w:x1-x0,h:y1-y0};
   }
   return {x:s.x-s.r,y:s.y-s.r,w:s.r*2,h:s.r*2};
@@ -1057,7 +1107,7 @@ function shapeBounds(s){
 function compileHole(h){
   if(h._ready) return;
   h.pal = typeof h.pal==='string' ? PALETTE[h.pal] : (h.pal||PALETTE.tropic);
-  ['cut','open','sand','water','lava','dry','tiers','slopes','ramps','pipes','boosts','movers','rotors','tides','decor']
+  ['cut','open','sand','water','lava','dry','tiers','slopes','ramps','pipes','boosts','pockets','movers','rotors','tides','decor']
     .forEach(k=> h[k]=h[k]||[]);
   h.styleMult = h.styleMult || 1;
   h.floorSDF = signedDF(rasterMask(h.pads,h.cut), BASE_W, BASE_H);
@@ -1258,6 +1308,7 @@ function loadHole(i,keepScore){
   hole.movers.forEach(m=>{ m._x=m.a.x; m._y=m.a.y; m._kick=0; });
   hole.rotors.forEach(r=>{ r._a=0; r._kick=0; });
   hole.boosts.forEach(b=>b._cool=0);
+  hole.pockets.forEach(p=>p._cool=0);
   holeStyle=0; holeStyleList=[]; holeHazards=0; popStreak=0; pops.length=0; resetShotFlags();
   mode='intro'; showIntro(); syncHUD();
 }
@@ -1382,7 +1433,11 @@ function updateDynamics(dtMs){
 function launchRamp(rp){
   safePos={x:ball.x,y:ball.y};
   const l=Math.hypot(rp.dir.x,rp.dir.y)||1;
-  ball.vx=rp.dir.x/l*rp.power; ball.vy=rp.dir.y/l*rp.power;
+  // `carry` lets the run-up decide how far you fly; `cap` keeps it on the map
+  const inc=Math.hypot(ball.vx,ball.vy);
+  let pw=rp.power+(rp.carry?inc*rp.carry:0);
+  if(rp.cap) pw=Math.min(pw,rp.cap);
+  ball.vx=rp.dir.x/l*pw; ball.vy=rp.dir.y/l*pw;
   ball.air=rp.air; ball.airMax=rp.air;
   rp._cool=now;
   if(!shotFlags.ramp){ shotFlags.ramp=true; styleAward(100,'Air time',rp.x,rp.y); }
@@ -1554,6 +1609,28 @@ function stepPhysics(dtMs){
     for(const t of h.tides) if(t._wet&&pointInShape(t.s,ball.x,ball.y)){ inWet=true; break; }
     if(inWet){ hazard('water'); return; }
     if(sdfAt(h.floorSDF,ball.x,ball.y)<-2.5){ hazard('ob'); return; }
+    // skee-ball pockets: score by which one you drop into, then get ejected
+    for(const pk of h.pockets){
+      const pd=dist(ball.x,ball.y,pk.x,pk.y);
+      if(now-(pk._cool||0)<800) continue;
+      if(pd<pk.r*2.0){
+        const pull=1-pd/(pk.r*2.0);
+        ball.vx+=((pk.x-ball.x)/(pd||1))*700*pull*dt;
+        ball.vy+=((pk.y-ball.y)/(pd||1))*700*pull*dt;
+      }
+      if(pd<pk.r*.82 && Math.hypot(ball.vx,ball.vy)<CAP_V){
+        pk._cool=now;
+        styleAward(pk.pts, pk.label||(pk.pts+' pocket'), pk.x, pk.y);
+        sfx.drop(); shake=Math.max(shake,4.2);
+        emit(20,pk.x,pk.y,{vmin:40,vmax:170,life:560,sz:3.2,glow:1,
+          col:['#ffd76b','#ffffff','#8fe6ff']});
+        toast(pk.jackpot?'JACKPOT!':'IN THE POCKET!');
+        if(navigator.vibrate) try{navigator.vibrate(pk.jackpot?30:16);}catch(e){}
+        ball.x=pk.out.x; ball.y=pk.out.y; ball.vx=0; ball.vy=0; ball.air=0;
+        emit(14,pk.out.x,pk.out.y,{vmin:30,vmax:110,life:420,sz:2.4,col:['#fff','#cdf3ff']});
+        return;
+      }
+    }
     // cup
     const cd2=dist(ball.x,ball.y,h.cup.x,h.cup.y);
     if(cd2<CUP_R*.85 && Math.hypot(ball.vx,ball.vy)<CAP_V){ sink(); return; }
@@ -1601,6 +1678,7 @@ function predictPath(vx,vy,maxMs){
     for(const rp of hole.ramps) if(dist(px,py,rp.x,rp.y)<rp.r){ hit='ramp'; break; }
     if(!hit) for(const bs of hole.boosts) if(dist(px,py,bs.x,bs.y)<bs.r){ hit='boost'; break; }
     if(!hit) for(const pp of hole.pipes) if(dist(px,py,pp.a.x,pp.a.y)<pp.r*.95){ hit='pipe'; break; }
+    if(!hit) for(const pk of hole.pockets) if(dist(px,py,pk.x,pk.y)<pk.r){ hit='pocket'; break; }
     if(hit){ pts.push({x:px,y:py}); pts.stop=hit; break; }
     pts.push({x:px,y:py});
   }
@@ -2235,6 +2313,19 @@ function drawMovers(t){
     else if(m.kind==='urchin') drawUrchin(m._x,m._y,m.r,t);
   }
 }
+function drawPockets(t){
+  for(const pk of hole.pockets){
+    const ready = now-(pk._cool||0) > 800;
+    const p=(t*.9+ (pk.jackpot?0:.4))%1;
+    ctx.strokeStyle=(pk.jackpot?'rgba(255,214,107,':'rgba(160,225,255,')+(((1-p)*(ready?.55:.15))).toFixed(3)+')';
+    ctx.lineWidth=2.2;
+    ctx.beginPath(); ctx.arc(pk.x,pk.y,pk.r*(.6+p*1.1),0,TAU); ctx.stroke();
+    const g=ctx.createRadialGradient(pk.x,pk.y,1,pk.x,pk.y,pk.r*1.5);
+    g.addColorStop(0,(pk.jackpot?'rgba(255,214,107,':'rgba(150,225,255,')+(ready?.22:.06)+')');
+    g.addColorStop(1,'rgba(150,225,255,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(pk.x,pk.y,pk.r*1.5,0,TAU); ctx.fill();
+  }
+}
 function drawBoosts(t){
   for(const bs of hole.boosts){
     const ang=Math.atan2(bs.dir.y,bs.dir.x);
@@ -2512,6 +2603,7 @@ function render(t){
     drawLavaAnim(t);
     drawTides(t);
     drawBoosts(t);
+    drawPockets(t);
     drawPipes(t);
     drawDecor(t);
     drawMovers(t);
@@ -2659,6 +2751,7 @@ function holeFeatures(h){
   if(h.ramps.length)  f.push('🚀 Launch ramp');
   if(h.pipes.length)  f.push('🌀 Shortcut tube');
   if(h.dry.length)    f.push('🌉 Bridge');
+  if(h.pockets.length) f.push('🎯 Bonus pockets');
   if(h.rotors.some(r=>r.osc)) f.push('🚧 Timed flap');
   else if(h.rotors.length)    f.push('🌪️ Spinner');
   if(h.movers.length) f.push(h.movers.some(m=>m.kind==='shark')?'🦈 Sharks':
