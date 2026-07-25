@@ -1586,7 +1586,22 @@ function predictPath(vx,vy,maxMs){
         if(++bounces>2) { pts.push({x:px,y:py}); break; }
       }
     }
-    if(sdfAt(hole.floorSDF,px,py)<-2.5){ pts.push({x:px,y:py}); break; }
+    // Be honest about what the shot runs into. Hazards, ramps, boosters and
+    // tubes all end the preview: past them the outcome is a redirect this
+    // simple roll-out cannot show, and silently drawing through a lava moat
+    // is how a player ends up dunking the ball over and over.
+    if(sdfAt(hole.floorSDF,px,py)<-2.5){ pts.push({x:px,y:py}); pts.stop='ob'; break; }
+    const hz=zoneAt(hole,px,py);
+    if(hz&Z_LAVA){ pts.push({x:px,y:py}); pts.stop='lava'; break; }
+    if(hz&Z_WATER){ pts.push({x:px,y:py}); pts.stop='water'; break; }
+    let wet=false;
+    for(const td of hole.tides) if(td._wet&&pointInShape(td.s,px,py)){ wet=true; break; }
+    if(wet){ pts.push({x:px,y:py}); pts.stop='water'; break; }
+    let hit=null;
+    for(const rp of hole.ramps) if(dist(px,py,rp.x,rp.y)<rp.r){ hit='ramp'; break; }
+    if(!hit) for(const bs of hole.boosts) if(dist(px,py,bs.x,bs.y)<bs.r){ hit='boost'; break; }
+    if(!hit) for(const pp of hole.pipes) if(dist(px,py,pp.a.x,pp.a.y)<pp.r*.95){ hit='pipe'; break; }
+    if(hit){ pts.push({x:px,y:py}); pts.stop=hit; break; }
     pts.push({x:px,y:py});
   }
   return pts;
@@ -2417,17 +2432,52 @@ function drawAim(){
   const col=powCol(pw);
   // predicted path
   const pts=predictPath(nx*pw*MAX_SPEED, ny*pw*MAX_SPEED, 2600);
-  const show=Math.max(2,Math.floor(pts.length*0.66));
+  const danger = pts.stop==='lava'||pts.stop==='water'||pts.stop==='ob';
+  // show the whole path when it ends somewhere that matters, so the warning lands
+  const show = pts.stop ? pts.length : Math.max(2,Math.floor(pts.length*0.66));
+  const lineCol = danger ? '#ff4d4d' : col;
   ctx.save();
   ctx.setLineDash([6,7]); ctx.lineDashOffset=-(now/28)%13;
-  ctx.strokeStyle=col; ctx.lineWidth=2.6; ctx.globalAlpha=.9; ctx.lineCap='round';
+  ctx.strokeStyle=lineCol; ctx.lineWidth=2.6; ctx.globalAlpha=.9; ctx.lineCap='round';
   ctx.beginPath();
   for(let i=0;i<show;i++) i?ctx.lineTo(pts[i].x,pts[i].y):ctx.moveTo(pts[i].x,pts[i].y);
   ctx.stroke();
   ctx.restore();
   const end=pts[show-1];
-  ctx.strokeStyle=col; ctx.lineWidth=2; ctx.globalAlpha=.85;
-  ctx.beginPath(); ctx.arc(end.x,end.y,5.5,0,TAU); ctx.stroke();
+  if(danger){
+    const pulse=(Math.sin(now/110)+1)/2;
+    ctx.save();
+    ctx.globalAlpha=.85+pulse*.15;
+    ctx.strokeStyle='#ff4d4d'; ctx.lineWidth=3; ctx.lineCap='round';
+    ctx.beginPath(); ctx.arc(end.x,end.y,9+pulse*1.6,0,TAU); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(end.x-4.6,end.y-4.6); ctx.lineTo(end.x+4.6,end.y+4.6);
+    ctx.moveTo(end.x+4.6,end.y-4.6); ctx.lineTo(end.x-4.6,end.y+4.6);
+    ctx.stroke();
+    ctx.restore();
+  } else if(pts.stop){
+    // ramp / boost / tube: this is where the shot gets taken over
+    ctx.save();
+    const spin=now/260;
+    ctx.strokeStyle='#8fe6ff'; ctx.lineWidth=2.6; ctx.globalAlpha=.95;
+    ctx.setLineDash([5,4]); ctx.lineDashOffset=-spin*8;
+    ctx.beginPath(); ctx.arc(end.x,end.y,10,0,TAU); ctx.stroke();
+    ctx.restore();
+    ctx.save();
+    ctx.fillStyle='#8fe6ff';
+    for(let i=0;i<3;i++){
+      const a3=Math.atan2(ny,nx);
+      ctx.save(); ctx.translate(end.x+Math.cos(a3)*(i*4-4), end.y+Math.sin(a3)*(i*4-4));
+      ctx.rotate(a3);
+      ctx.globalAlpha=.35+i*.25;
+      ctx.beginPath(); ctx.moveTo(3,0); ctx.lineTo(-2.4,-2.6); ctx.lineTo(-2.4,2.6); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  } else {
+    ctx.strokeStyle=col; ctx.lineWidth=2; ctx.globalAlpha=.85;
+    ctx.beginPath(); ctx.arc(end.x,end.y,5.5,0,TAU); ctx.stroke();
+  }
   ctx.globalAlpha=1;
   // rubber band behind the ball
   ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=3.4; ctx.lineCap='round';
