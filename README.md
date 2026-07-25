@@ -12,22 +12,29 @@ previews the bounce; a full drag is **OVERDRIVE**, hard enough to cross an
 entire hole.
 
 Every hole has obstacles to beat and a boost pad, ramp or shortcut tube to
-exploit. Beyond the scorecard there are **style points** — bank shots, trick
-shots, long bombs, air mail off a ramp, turbo finishes, tunnel runs and clean
-sheets all pay out, and the more elaborate holes carry a multiplier up to ×2.5.
+exploit. **Style points** pop up on screen the moment you earn them — bank
+shots, trick shots, long bombs, air mail off a ramp, turbo finishes, tunnel
+runs and clean sheets — so you can see what scores. Elaborate holes carry a
+multiplier up to ×2.5.
+
+Highlights: hole 3 has fully bouncy bumper rails, hole 6 forks with a timed
+signal flap (right side = the beach green, wrong side = the bay), hole 10 is a
+two-level volcano with a lava moat between the tiers, and hole 11 offers a
+short dangerous shark bridge or a long safe lap. Max-power shots set the ball
+on fire.
 
 | # | Hole | Par | Modelled on |
 |---|------|-----|-------------|
 | 1 | Sandpiper Straight | 2 | a gentle links opener |
 | 2 | The Postage Stamp | 2 | Royal Troon, 8th |
-| 3 | Palm Dogleg | 3 | a classic tree-lined dogleg |
+| 3 | Rubber Reef Bend | 3 | a dogleg — with bouncy bumper rails |
 | 4 | Island Green | 3 | TPC Sawgrass, 17th |
 | 5 | Blowhole Launch | 3 | beach-golf original |
-| 6 | The Road Hole | 4 | St Andrews, 17th |
+| 6 | The Fork in the Road | 4 | St Andrews, 17th |
 | 7 | Devil's Cauldron | 3 | Banff Springs, 4th |
 | 8 | Shipwreck Bend | 4 | beach-golf original |
 | 9 | Tidal Rush | 4 | beach-golf original |
-| 10 | Volcano Vortex | 4 | beach-golf original |
+| 10 | Volcano Vortex | 4 | beach-golf original — two levels |
 | 11 | Shark Loop | 5 | classic putt-putt loop |
 | 12 | Lighthouse Point | 5 | Pebble Beach, 18th |
 
